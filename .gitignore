@@ -1,0 +1,5 @@
+input/*
+!input/refine.ipynb
+!input/download.sh
+
+.vscode
