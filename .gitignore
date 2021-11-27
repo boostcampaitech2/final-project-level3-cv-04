@@ -1,5 +1,6 @@
 input/*
-!input/refine.ipynb
+!input/make_input.py
 !input/download.sh
+!input/README.md
 
 .vscode
