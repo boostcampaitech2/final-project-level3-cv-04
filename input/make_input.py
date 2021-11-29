@@ -8,7 +8,7 @@ from multiprocessing import Pool
 SAVE_IMAGE_ROOT = "./image"
 RESIZE = (320,240)
 
-CSV_RANGE = [("train.csv",range(1,7)),("valid.csv",range(7,9)),("test.csv",range(9,12))]
+CSV_RANGE = [("train.csv",range(1,6)),("valid.csv",range(6,8)),("test.csv",range(8,12))]
 DATASET_CUSTOM_NAME = "dataset"
 
 DATASET_NUM = range(1,12)
@@ -52,8 +52,8 @@ def readFrame(cap, frame):
 		raise "프레임 없대요"
 	return image
 
-def makeInput(annotation, labelName, spawn):
-	for annPath, videoPath, nowDatasetNum in tqdm(annotation,position=spawn+1, leave=False):
+def makeInput(annotation, labelName, positionNum):
+	for annPath, videoPath, nowDatasetNum in tqdm(annotation,position=positionNum+1, leave=False):
 		cnt = 0
 		cap = cv2.VideoCapture(videoPath)
 		df = pd.read_csv(annPath, index_col=False)
@@ -68,7 +68,10 @@ def makeInput(annotation, labelName, spawn):
 			image = readFrame(cap, frame_time)
 			image = cv2.resize(image,RESIZE)
 			fileName = f"{DATASET_CUSTOM_NAME+nowDatasetNum}/{cnt:05d}{IMAGE_FORMAT}"
-			cv2.imwrite(os.path.join(SAVE_IMAGE_ROOT,fileName),image)
+			
+			if not os.path.isfile(os.path.join(SAVE_IMAGE_ROOT,fileName)):
+				cv2.imwrite(os.path.join(SAVE_IMAGE_ROOT,fileName),image)
+			
 			labelList.append((os.path.join("image",fileName),int(movement_code),int(is_washing)))		
 			cnt+=1
 
@@ -77,14 +80,14 @@ def makeInput(annotation, labelName, spawn):
 		cap.release()
 
 
-fullTQDM = tqdm(DATASET_NUM)
+fullTQDM = tqdm(total=len(DATASET_NUM))
 
 def start(mode):
 	global fullTQDM
-	num, csv = mode
+	positionNum, csv = mode
 	csvName, csvRange = csv
 	for i in csvRange:
-		makeInput(getAnnotation(i),csvName, num)
+		makeInput(getAnnotation(i),csvName, positionNum)
 		fullTQDM.update(1)
 
 if __name__=="__main__":
