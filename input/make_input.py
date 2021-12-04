@@ -8,7 +8,7 @@ from multiprocessing import Pool
 SAVE_IMAGE_ROOT = "./image"
 RESIZE = (320,240)
 
-CSV_RANGE = [("train.csv",range(1,6)),("valid.csv",range(6,8)),("test.csv",range(8,12))]
+CSV_RANGE = [("train.csv",range(1,4)),("train.csv",range(4,6)),("valid.csv",range(6,7)),("train.csv",range(7,9)),("train.csv",range(9,12))]
 DATASET_CUSTOM_NAME = "dataset"
 
 DATASET_NUM = range(1,12)
@@ -53,8 +53,8 @@ def readFrame(cap, frame):
 	return image
 
 def makeInput(annotation, labelName, positionNum):
-	for annPath, videoPath, nowDatasetNum in tqdm(annotation,position=positionNum+1, leave=False):
-		cnt = 0
+	cnt = 0
+	for annPath, videoPath, nowDatasetNum in tqdm(annotation,position=positionNum, leave=False):
 		cap = cv2.VideoCapture(videoPath)
 		df = pd.read_csv(annPath, index_col=False)
 
@@ -67,7 +67,7 @@ def makeInput(annotation, labelName, positionNum):
 			
 			image = readFrame(cap, frame_time)
 			image = cv2.resize(image,RESIZE)
-			fileName = f"{DATASET_CUSTOM_NAME+nowDatasetNum}/{cnt:05d}{IMAGE_FORMAT}"
+			fileName = f"{DATASET_CUSTOM_NAME+nowDatasetNum}/{cnt:07d}{IMAGE_FORMAT}"
 			
 			if not os.path.isfile(os.path.join(SAVE_IMAGE_ROOT,fileName)):
 				cv2.imwrite(os.path.join(SAVE_IMAGE_ROOT,fileName),image)
@@ -79,16 +79,11 @@ def makeInput(annotation, labelName, positionNum):
 		pd.DataFrame(labelList,columns=["file_name","movement_code","is_washing"]).to_csv(labelName, mode="a",header=not os.path.isfile(labelName),index=False)
 		cap.release()
 
-
-fullTQDM = tqdm(total=len(DATASET_NUM))
-
 def start(mode):
-	global fullTQDM
 	positionNum, csv = mode
 	csvName, csvRange = csv
 	for i in csvRange:
 		makeInput(getAnnotation(i),csvName, positionNum)
-		fullTQDM.update(1)
 
 if __name__=="__main__":
 	initFile()
