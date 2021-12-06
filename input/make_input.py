@@ -8,7 +8,9 @@ from multiprocessing import Pool
 SAVE_IMAGE_ROOT = "./image"
 RESIZE = (320,240)
 
-CSV_RANGE = [("train.csv",range(1,4)),("train.csv",range(4,6)),("valid.csv",range(6,7)),("train.csv",range(7,9)),("train.csv",range(9,12))]
+CSV_RANGE = []
+CSV_RANGE.extend([("train.csv",x) for x in range(1,9)])
+CSV_RANGE.extend([("valid.csv",x) for x in range(9,12)])
 DATASET_CUSTOM_NAME = "dataset"
 
 DATASET_NUM = range(1,12)
@@ -30,19 +32,53 @@ def initFile():
 		os.makedirs(os.path.join(SAVE_IMAGE_ROOT,DATASET_CUSTOM_NAME+str(i)),exist_ok=True)
 
 
-def getAnnotation(datasetNum):
-	annList = []
+def makeInput(datasetNum, labelName, position):
 	rootDir = DATASET_NAME+str(datasetNum)
-	annotationRoot = os.path.join(rootDir,DATASET_ANNOTATION)
-	annotationDirs = [os.path.join(annotationRoot,x) for x in os.listdir(annotationRoot)]
+	videoRoot = os.path.join(rootDir,DATASET_VIDEO)
+	videoFiles = os.listdir(videoRoot)
 
-	for dirPath in annotationDirs:
-		annList.extend([
-			(os.path.join(dirPath,x), 
-			os.path.join(rootDir,DATASET_VIDEO,x.split(".")[0]+".mp4"),
-			str(datasetNum)
-			) for x in os.listdir(dirPath) if "csv" in x])
-	return annList
+	cnt = 0
+	for video in tqdm(videoFiles,position=position, leave=False):
+		labelList = []
+
+		csv = ".".join(video.split(".")[:-1])+".csv"
+		annotations = [pd.read_csv(os.path.join(rootDir,DATASET_ANNOTATION,x,csv)).to_numpy().tolist() 
+			for x in os.listdir(os.path.join(rootDir,DATASET_ANNOTATION))
+			if os.path.isfile(os.path.join(rootDir,DATASET_ANNOTATION,x,csv))
+			]
+
+		cap = cv2.VideoCapture(os.path.join(videoRoot,video))
+		for line in zip(*annotations):
+			vertical = list(zip(*line))
+			if 0.0 in vertical[2]:
+				continue
+			if len(set(vertical[0])) != 1:
+				continue 
+			frame = vertical[0][0]
+
+			ls = [0] * 7
+			for i in vertical[2]:
+				ls[int(i)-1] += 1
+			lsSum = sum(ls)
+			ls = [x/lsSum for x in ls]
+		
+			image = readFrame(cap, frame)
+			image = cv2.resize(image,RESIZE)
+			fileName = f"{DATASET_CUSTOM_NAME+str(datasetNum)}/{cnt:07d}{IMAGE_FORMAT}"
+
+			fullFileName = os.path.join(SAVE_IMAGE_ROOT,fileName)
+			if not os.path.isfile(fullFileName):
+				cv2.imwrite(fullFileName,image)
+
+			oneLabel = [fullFileName]
+			oneLabel.extend(ls)
+			oneLabel.append(round(sum(vertical[1])/len(vertical[1])))
+			oneLabel.append(video)
+			labelList.append(oneLabel)
+			cnt+=1
+		pd.DataFrame(labelList,columns=["file_name","1","2","3","4","5","6","7","is_washing","video_name"]).to_csv(labelName, mode="a",header=not os.path.isfile(labelName),index=False)
+		cap.release()
+
 
 def readFrame(cap, frame):
 	cap.set(cv2.CAP_PROP_FRAME_COUNT, frame)
@@ -52,41 +88,12 @@ def readFrame(cap, frame):
 		raise "프레임 없대요"
 	return image
 
-def makeInput(annotation, labelName, positionNum):
-	cnt = 0
-	for annPath, videoPath, nowDatasetNum in tqdm(annotation,position=positionNum, leave=False):
-		cap = cv2.VideoCapture(videoPath)
-		df = pd.read_csv(annPath, index_col=False)
-
-		labelList = []
-		for _, row in df.iterrows():
-			frame_time, is_washing, movement_code = row
-
-			if movement_code==0:
-				continue
-			
-			image = readFrame(cap, frame_time)
-			image = cv2.resize(image,RESIZE)
-			fileName = f"{DATASET_CUSTOM_NAME+nowDatasetNum}/{cnt:07d}{IMAGE_FORMAT}"
-			
-			if not os.path.isfile(os.path.join(SAVE_IMAGE_ROOT,fileName)):
-				cv2.imwrite(os.path.join(SAVE_IMAGE_ROOT,fileName),image)
-			
-			labelList.append((os.path.join("image",fileName),int(movement_code),int(is_washing)))		
-			cnt+=1
-
-		# mp4 파일마다 저장
-		pd.DataFrame(labelList,columns=["file_name","movement_code","is_washing"]).to_csv(labelName, mode="a",header=not os.path.isfile(labelName),index=False)
-		cap.release()
-
 def start(mode):
-	positionNum, csv = mode
-	csvName, csvRange = csv
-	for i in csvRange:
-		makeInput(getAnnotation(i),csvName, positionNum)
+	position, csv = mode
+	csvName, csvNum = csv
+	makeInput(csvNum,csvName,position)
 
 if __name__=="__main__":
 	initFile()
-
 	with Pool(len(CSV_RANGE)) as p:
 		p.map(start,enumerate(CSV_RANGE))
