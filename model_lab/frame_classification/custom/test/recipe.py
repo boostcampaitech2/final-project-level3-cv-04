@@ -29,7 +29,7 @@ class Recipe(AbstractRecipe):
 		self.trainDataloader = DataLoader(
 			dataset = WashingDataset("train",self.config["root"],self.config["train_csv"],trainT),
 			batch_size= self.config["batch"],
-			shuffle=True,
+			shuffle=False,
 			drop_last=True,
 			num_workers=4		
 		)
@@ -53,12 +53,11 @@ class Recipe(AbstractRecipe):
 		)
 
 	def _buildOptimizer(self):
-		print(self.config["lr"])
-		print(type(self.config["lr"]))
 		self.optimizer = torch.optim.AdamW(params=self.model.parameters(),lr=self.config["lr"])
 
 	def _buildLoss(self):
-		self.loss = torch.nn.CrossEntropyLoss()
+		# self.loss = torch.nn.CrossEntropyLoss()
+		self.loss = torch.nn.BCEWithLogitsLoss()
 
 	def _buildScheduler(self):
 		pass

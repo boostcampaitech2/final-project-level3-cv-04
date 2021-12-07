@@ -34,14 +34,17 @@ class Trainer:
 			self.optimizer.zero_grad()
 			with autocast():
 				outputs = self.model(images)
-				preds = torch.argmax(outputs,dim=-1)
 				loss = self.criterion(outputs, labels)
 			self.scaler.scale(loss).backward()
 			self.scaler.step(self.optimizer)
 			self.scaler.update()
+
+			preds = torch.argmax(outputs,dim=-1)
+			hardLabels = torch.argmax(labels,dim=-1)
+
 			total_loss += loss.item()
-			total_match += (preds==labels).sum().item()
-			trainTQDM.set_description(desc=f"loss : {loss.item()/len(labels):02f}, acc : {(preds==labels).sum().item()/len(labels):02f}")
+			total_match += (preds==hardLabels).sum().item()
+			trainTQDM.set_description(desc=f"loss : {loss.item()/len(labels):02f}, acc : {(preds==hardLabels).sum().item()/len(labels):02f}")
 
 		total_loss = total_loss / len(self.trainDataloader) / self.config["batch"]
 		total_acc = total_match / len(self.trainDataloader) / self.config["batch"]
@@ -61,11 +64,14 @@ class Trainer:
 				labels = labels.to(self.device)
 
 				outputs = self.model(images)
-				preds = torch.argmax(outputs,dim=-1)
 				loss = self.criterion(outputs, labels)
+
+				preds = torch.argmax(outputs,dim=-1)
+				hardLabels = torch.argmax(labels,dim=-1)
+
 				total_loss += loss.item()
-				total_match += (preds==labels).sum().item()
-				validTQDM.set_description(desc=f"loss : {loss.item()/len(labels):02f}, acc : {(preds==labels).sum().item()/len(labels):02f}")
+				total_match += (preds==hardLabels).sum().item()
+				validTQDM.set_description(desc=f"loss : {loss.item()/len(labels):02f}, acc : {(preds==hardLabels).sum().item()/len(labels):02f}")
 			
 		total_loss = total_loss / len(self.validDataloader) / self.config["batch"]
 		total_acc = total_match / len(self.validDataloader) / self.config["batch"]
