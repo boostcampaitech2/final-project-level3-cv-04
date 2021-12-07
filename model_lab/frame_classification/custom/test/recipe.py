@@ -29,7 +29,7 @@ class Recipe(AbstractRecipe):
 		self.trainDataloader = DataLoader(
 			dataset = WashingDataset("train",self.config["root"],self.config["train_csv"],trainT),
 			batch_size= self.config["batch"],
-			shuffle=True,
+			shuffle=False,
 			drop_last=True,
 			num_workers=4		
 		)
