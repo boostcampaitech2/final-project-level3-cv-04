@@ -3,6 +3,8 @@ input/*
 !input/download.sh
 !input/README.md
 
+serving/videos
+
 .vscode
 
 **/*.pyc
