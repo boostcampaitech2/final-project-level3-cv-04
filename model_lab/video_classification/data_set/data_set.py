@@ -1,7 +1,7 @@
 import torch
 from torchvision.datasets.utils import list_dir
 from torchvision.datasets.folder import make_dataset
-from torchvision.datasets.video_utils import VideoClips, _collate_fn
+from data_set.video_utils import VideoClips, _collate_fn
 from torchvision.datasets.vision import VisionDataset
 from torchvision.io import read_video_timestamps, read_video
 from tqdm import tqdm
@@ -58,9 +58,6 @@ class HandWashDataset(VisionDataset):
 
     def __getitem__(self, idx):
         video, audio, info, video_idx = self.video_clips.get_clip(idx)
-
-        if len(video) == self.frame_per_clip + 1:
-            video = video[:-1]
 
         label = self.samples[video_idx][1]
         

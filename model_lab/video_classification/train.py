@@ -100,8 +100,8 @@ def run(args, cfg, device):
     val_transform = get_transform(cfg['transforms']['valid'])
 
     # # DataSet 설정
-    train_dataset = OneSamplePerVideoDataset(cfg['train_path'], cfg['frame_per_clip'], transform=train_transform)
-    valid_dataset = OneSamplePerVideoDataset(cfg['valid_path'], cfg['frame_per_clip'], transform=val_transform)
+    train_dataset = HandWashDataset(cfg['train_path'], cfg['frame_per_clip'], cfg['frame_per_clip'], transform=train_transform)
+    valid_dataset = HandWashDataset(cfg['valid_path'], cfg['frame_per_clip'], cfg['frame_per_clip'], transform=val_transform)
 
     # # DataLoader 설정
     train_loader = DataLoader(dataset=train_dataset, **cfg['train_dataloader']['params'])
