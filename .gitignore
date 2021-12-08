@@ -4,5 +4,6 @@ input/*
 !input/README.md
 
 .vscode
-
+**/__pycache__
 **/*.pyc
+/model_lab/video_classification/saved/*

@@ -1,0 +1,50 @@
+seed: 42 # seed
+saved_dir: ./saved # save directory
+exp_name: 1_Test # experiment name /saved/exp_name/ 폴더에 모델과 best_log, yaml 파일이 저장됨
+fp16 : false
+
+model: 
+  name: X3D_xs
+  class: 9
+
+# data
+train_path: /opt/ml/data/hand_wash/data/split # train에 사용할 json 파일
+valid_path: /opt/ml/data/hand_wash/data/valid # validation에 사용할 json 파일
+frame_per_clip: 8
+
+# dataloader
+train_dataloader:
+  params:
+    batch_size: 32
+    shuffle: true
+    num_workers: 8
+    drop_last: true
+
+valid_dataloader:
+  params:
+    batch_size: 32
+    shuffle: false
+    num_workers: 8
+
+# 사용할 transforms 이름
+transforms:
+  train: x3d_train # /data_set/data_augmentation.py의 transform_entrypoints 참고
+  valid: x3d_valid # /data_set/data_augmentation.py의 transform_entrypoints 참고
+
+# train setting
+epochs: 30 # train epochs
+
+criterion: # loss function
+  name: cross_entropy # /model/loss.py의 criterion_entrypoints 참고
+
+optimizer: # optimizer 
+  name: Adam # torch.optim의 optimizer 사용 가능
+  params:
+    lr: 0.001 # 1e3
+    weight_decay: 0.00001 # 1e5
+
+scheduler: # lr scheduler
+  name: MultiStepLR # torch.optim.lr_scheduler scheduler 사용 가능
+  params:
+    milestones: [8250, 13750]
+    gamma: 0.1
