@@ -1,8 +1,13 @@
+'''
+authors: Sangwon Lee, Sungjin Park, Rachel Lee
+contact: zzxng123@gmail.com, 8639sung@gmail.com, rachel318318@gmail.com
+'''
 #PyQt5 라이브러리
 from PyQt5 import uic
 from PyQt5.QtWidgets import QApplication, QFileDialog, QMainWindow, QMessageBox
 from PyQt5.QtGui import QPixmap, QImage, QFont
 from PyQt5.QtCore import QThread, Qt, pyqtSignal, pyqtSlot
+
 #화면을 윈도우에 띄우기 위해 sys접근
 import sys
 import platform
