@@ -4,12 +4,12 @@ exp_name: 1_Test # experiment name /saved/exp_name/ 폴더에 모델과 best_log
 fp16 : false
 
 model: 
-  name: X3D_xs
+  name: X3D_xs # 모델 이름 /model/model.py 참고
   class: 9
 
 # data
-train_path: /opt/ml/data/hand_wash/data/split # train에 사용할 json 파일
-valid_path: /opt/ml/data/hand_wash/data/valid # validation에 사용할 json 파일
+train_path: /opt/ml/data/hand_wash/data/split # train에 사용할 Data 경로
+valid_path: /opt/ml/data/hand_wash/data/valid # validation에 사용할 Data 경로
 frame_per_clip: 8
 
 # dataloader
