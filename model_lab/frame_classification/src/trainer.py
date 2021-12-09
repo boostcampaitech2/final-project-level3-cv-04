@@ -2,6 +2,7 @@ import torch
 from torch.cuda.amp.grad_scaler import GradScaler
 from torch.cuda.amp import autocast
 from tqdm import tqdm
+import numpy as np
 
 class Trainer:
 	def __init__(self, config, trainDataloader, validDataloader, model, optimizer, criterion, scheduler):
@@ -28,30 +29,37 @@ class Trainer:
 		total_match = 0
 		trainTQDM = tqdm(self.trainDataloader)
 
+		confusion_matrix = torch.zeros(self.config["num_classes"],self.config["num_classes"])
+
 		for images,labels in trainTQDM:
 			images = images.to(self.device)
 			labels = labels.to(self.device)
 			self.optimizer.zero_grad()
 			with autocast():
 				outputs = self.model(images)
-				loss = self.criterion(outputs, labels)
+				loss = self.criterion(outputs,labels)
 			self.scaler.scale(loss).backward()
 			self.scaler.step(self.optimizer)
 			self.scaler.update()
 
 			preds = torch.argmax(outputs,dim=-1)
-			hardLabels = torch.argmax(labels,dim=-1)
+			# labels = torch.argmax(labels,dim=-1)
+
+			for t, p in zip(labels.view(-1),preds.view(-1)):
+				confusion_matrix[t.long(), p.long()] += 1
 
 			total_loss += loss.item()
-			total_match += (preds==hardLabels).sum().item()
-			trainTQDM.set_description(desc=f"loss : {loss.item()/len(labels):02f}, acc : {(preds==hardLabels).sum().item()/len(labels):02f}")
+			total_match += (preds==labels).sum().item()
 
 		total_loss = total_loss / len(self.trainDataloader) / self.config["batch"]
 		total_acc = total_match / len(self.trainDataloader) / self.config["batch"]
 		print(f"train loss = {total_loss:04f}")
-		print(f"total acc = {total_acc:04f}")
+		print(f"train acc = {total_acc:04f}")		
+		print(np.round_( torch.div(confusion_matrix, len(self.trainDataloader)*self.config["batch"]/100).numpy(),2))
 
 	def valid(self):
+
+		confusion_matrix = torch.zeros(self.config["num_classes"],self.config["num_classes"])
 
 		with torch.no_grad():
 			self.model.eval()
@@ -66,14 +74,17 @@ class Trainer:
 				outputs = self.model(images)
 				loss = self.criterion(outputs, labels)
 
+				# labels = torch.argmax(labels,dim=-1)
 				preds = torch.argmax(outputs,dim=-1)
-				hardLabels = torch.argmax(labels,dim=-1)
+				
+				for t, p in zip(labels.view(-1),preds.view(-1)):
+					confusion_matrix[t.long(), p.long()] += 1
 
 				total_loss += loss.item()
-				total_match += (preds==hardLabels).sum().item()
-				validTQDM.set_description(desc=f"loss : {loss.item()/len(labels):02f}, acc : {(preds==hardLabels).sum().item()/len(labels):02f}")
+				total_match += (preds==labels).sum().item()
 			
 		total_loss = total_loss / len(self.validDataloader) / self.config["batch"]
 		total_acc = total_match / len(self.validDataloader) / self.config["batch"]
 		print(f"valid loss = {total_loss:04f}")
 		print(f"valid acc = {total_acc:04f}")		
+		print(np.round_( torch.div(confusion_matrix, len(self.trainDataloader)*self.config["batch"]/100).numpy(),2))

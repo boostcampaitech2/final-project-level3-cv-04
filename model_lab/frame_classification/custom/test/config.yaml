@@ -4,4 +4,4 @@ valid_csv : "valid.csv"
 batch : 256
 lr : 0.01
 epoch : 50
-num_classes : 8
+num_classes : 7

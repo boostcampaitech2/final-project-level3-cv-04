@@ -9,8 +9,8 @@ SAVE_IMAGE_ROOT = "./image"
 RESIZE = (320,240)
 
 CSV_RANGE = []
-CSV_RANGE.extend([("train.csv",x) for x in range(1,9)])
-CSV_RANGE.extend([("valid.csv",x) for x in range(9,12)])
+CSV_RANGE.extend([("train.csv",x) for x in range(1,10)])
+CSV_RANGE.extend([("valid.csv",x) for x in range(10,12)])
 DATASET_CUSTOM_NAME = "dataset"
 
 DATASET_NUM = range(1,12)
@@ -50,15 +50,15 @@ def makeInput(datasetNum, labelName, position):
 		cap = cv2.VideoCapture(os.path.join(videoRoot,video))
 		for line in zip(*annotations):
 			vertical = list(zip(*line))
-			# if 0.0 in vertical[2]:
-			# 	continue
+			if 0.0 in vertical[2]:
+				continue
 			if len(set(vertical[0])) != 1:
 				continue 
 			frame = vertical[0][0]
 
-			ls = [0] * 8
+			ls = [0] * 7
 			for i in vertical[2]:
-				ls[int(i)] += 1
+				ls[int(i)-1] += 1
 			lsSum = sum(ls)
 			ls = [x/lsSum for x in ls]
 
@@ -78,7 +78,7 @@ def makeInput(datasetNum, labelName, position):
 			oneLabel.append(video)
 			labelList.append(oneLabel)
 			cnt+=1
-		pd.DataFrame(labelList,columns=["file_name","0","1","2","3","4","5","6","7","is_washing","video_name"]).to_csv(labelName, mode="a",header=not os.path.isfile(labelName),index=False)
+		pd.DataFrame(labelList,columns=["file_name","1","2","3","4","5","6","7","is_washing","video_name"]).to_csv(labelName, mode="a",header=not os.path.isfile(labelName),index=False)
 		cap.release()
 
 def readFrame(cap, frame):
