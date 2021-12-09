@@ -3,6 +3,7 @@ import torch
 import cv2
 import os
 import pandas as pd
+import numpy as np
 
 class WashingDataset(Dataset):
 	def __init__(self, mode, inputRoot, csv, transform) -> None:
@@ -29,4 +30,11 @@ class WashingDataset(Dataset):
 		image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
 		image = self.transform(image=image)['image']
 
-		return image, torch.tensor(softLabel)
+		return image, torch.argmax(torch.tensor(softLabel),dim=-1)
+	
+	def getLabelForWeighted(self,index):
+
+		item = self.data.iloc[index]
+		softLabel = np.array(item[1:-2])
+		
+		return np.argmax(softLabel)
