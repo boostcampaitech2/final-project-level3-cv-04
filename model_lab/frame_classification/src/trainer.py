@@ -6,6 +6,7 @@ import numpy as np
 from src.save_helper import SaveHelper
 import time
 from src.wandb_helper import WandB
+from tqdm import tqdm
 
 class Trainer:
 	def __init__(self, config, trainDataloader, validDataloader, model, optimizer, criterion, scheduler):
@@ -21,21 +22,26 @@ class Trainer:
 		self.saveHelper = SaveHelper(config)
 		self.config["save_dirs"] = self.saveHelper.getSavedDir()
 		self.WandB = WandB(self.config)
+		self.fullTQDM = tqdm(range(self.config["epoch"]),position=0)
 
 	def start(self):
-		for epoch in range(self.config["epoch"]):
+		for epoch in self.fullTQDM:
+			self.fullTQDM.set_description(f"Now epoch : {epoch}")
 			self.train()
 			self.valid()
 
-			if self.saveHelper.checkBestF1(self.WandB.getF1(),epoch):
+			nowF1 = self.WandB.getF1()
+			if self.saveHelper.checkBestF1(nowF1, epoch):
 				self.saveHelper.saveModel(epoch,self.model,self.optimizer,self.scheduler)
 				self.saveHelper.removeModel()
+				self.fullTQDM.set_postfix({"Last Save Model is epoch" : epoch, "F1":nowF1})
+
 		
 	def train(self):
 		self.model.train()
 		trainLoss = 0
 		trainAcc = 0
-		trainTQDM = tqdm(self.trainDataloader)
+		trainTQDM = tqdm(self.trainDataloader,leave=False,position=1,desc="Train...")
 
 		for images,labels in trainTQDM:
 			images = images.to(self.device)
@@ -50,11 +56,11 @@ class Trainer:
 			self.scheduler.step()
 
 			preds = torch.argmax(outputs,dim=-1)
-			# labels = torch.argmax(labels,dim=-1)
 
 			loss = loss.item() / self.config["batch"]
 			acc = (preds==labels).sum().item() / self.config["batch"]
 
+			trainTQDM.set_postfix({"Train loss" : loss, "Train Acc" : acc})
 			self.WandB.trainLog(loss,acc,self.scheduler.get_last_lr())
 			
 			trainLoss += loss
@@ -68,15 +74,15 @@ class Trainer:
 
 		confusion_matrix = torch.zeros(self.config["num_classes"],self.config["num_classes"])
 
-		t = time.time()
 		with torch.no_grad():
 			self.model.eval()
 		
 			validLoss = 0
 			validAcc = 0
-			validTQDM = tqdm(self.validDataloader)
+			validTQDM = tqdm(self.validDataloader,leave=False,position=1,desc="Valid...")
 			predList = None
 			yTrueList = None
+			t = time.time()
 			for images,labels in validTQDM:
 				images = images.to(self.device)
 				labels = labels.to(self.device)
@@ -84,7 +90,6 @@ class Trainer:
 				outputs = self.model(images)
 				loss = self.criterion(outputs, labels)
 
-				# labels = torch.argmax(labels,dim=-1)
 				preds = torch.argmax(outputs,dim=-1)
 				
 				loss = loss.item() / self.config["batch"]
@@ -95,6 +100,7 @@ class Trainer:
 
 				validLoss += loss
 				validAcc += acc
+				validTQDM.set_postfix({"Valid loss" : loss, "Valid Acc" : acc})
 
 				labels = labels.cpu()
 				preds = preds.cpu()
@@ -104,4 +110,4 @@ class Trainer:
 		validLoss = validLoss / len(self.validDataloader)
 		validAcc = validAcc / len(self.validDataloader)
 
-		self.WandB.validLog(predList,yTrueList,validLoss,validAcc,confusion_matrix,time.time()-t,len(self.validDataloader))
+		self.WandB.validLog(predList,yTrueList,validLoss,validAcc,confusion_matrix,time.time()-t)
