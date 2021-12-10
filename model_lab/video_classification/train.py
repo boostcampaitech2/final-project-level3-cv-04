@@ -9,7 +9,6 @@ from importlib import import_module
 import utils.utils as utils
 
 from torch.utils.data import DataLoader
-
 from data_set.data_set import HandWashDataset, OneSamplePerVideoDataset
 from data_set.data_augmenation import get_transform
 from model.loss import create_criterion
@@ -51,10 +50,12 @@ def train_one_epoch(model, criterion, optimizer, lr_scheduler, data_loader, devi
             optimizer.step()
 
         acc1, acc2 = utils.accuracy(output, target, topk=(1, 2))
+        f1 = utils.f1_score(output, target)
         batch_size = video.shape[0]
         metric_logger.update(loss=loss.item(), lr=optimizer.param_groups[0]["lr"])
         metric_logger.meters["acc1"].update(acc1.item(), n=batch_size)
         metric_logger.meters["acc2"].update(acc2.item(), n=batch_size)
+        metric_logger.meters["f1"].update(f1.item(), n=batch_size)
         metric_logger.meters["clips/s"].update(batch_size / (time.time() - start_time))
         lr_scheduler.step()
 
@@ -71,21 +72,23 @@ def evaluate(model, criterion, data_loader, device):
             loss = criterion(output, target)
 
             acc1, acc2 = utils.accuracy(output, target, topk=(1, 2))
+            f1 = utils.f1_score(output, target)
             # FIXME need to take into account that the datasets
             # could have been padded in distributed setup
             batch_size = video.shape[0]
             metric_logger.update(loss=loss.item())
             metric_logger.meters["acc1"].update(acc1.item(), n=batch_size)
             metric_logger.meters["acc2"].update(acc2.item(), n=batch_size)
+            metric_logger.meters["f1"].update(f1.item(), n=batch_size)
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
 
     print(
-        " * Clip Acc@1 {top1.global_avg:.3f} Clip Acc@2 {top2.global_avg:.3f}".format(
-            top1=metric_logger.acc1, top2=metric_logger.acc2
+        " * Clip Acc@1 {top1.global_avg:.3f} Clip Acc@2 {top2.global_avg:.3f} Clip F1 {f1.global_avg:.3f}".format(
+            top1=metric_logger.acc1, top2=metric_logger.acc2, f1=metric_logger.f1
         )
     )
-    return metric_logger.acc1.global_avg
+    return metric_logger.acc1.global_avg, metric_logger.f1.global_avg
 
 def run(args, cfg, device):
     seed_everything(cfg['seed'])
@@ -100,7 +103,7 @@ def run(args, cfg, device):
     val_transform = get_transform(cfg['transforms']['valid'])
 
     # # DataSet 설정
-    train_dataset = HandWashDataset(cfg['train_path'], cfg['frame_per_clip'], cfg['frame_per_clip'], transform=train_transform)
+    train_dataset = OneSamplePerVideoDataset(cfg['train_path'], cfg['frame_per_clip'], transform=train_transform)
     valid_dataset = HandWashDataset(cfg['valid_path'], cfg['frame_per_clip'], cfg['frame_per_clip'], transform=val_transform)
 
     # # DataLoader 설정
@@ -131,8 +134,8 @@ def run(args, cfg, device):
     for epoch in range(1, N_EPOCHS + 1):
         print('Epoch:', epoch)
         train_one_epoch(model, criterion, optimizer, scheduler, train_loader, device, epoch, print_freq=100, scaler=scaler)
-        accuracy = evaluate(model, criterion, valid_loader, device)
-        best_logger(cfg['saved_dir'],epoch, N_EPOCHS, accuracy)
+        metrics = evaluate(model, criterion, valid_loader, device)
+        best_logger(cfg['saved_dir'],epoch, N_EPOCHS, metrics)
 
         if cfg['saved_dir']:
                 checkpoint = {

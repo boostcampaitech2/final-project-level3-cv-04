@@ -9,7 +9,7 @@ from collections import defaultdict, deque
 
 import torch
 import torch.distributed as dist
-
+import torch.nn.functional as F
 
 class SmoothedValue:
     """Track a series of values and provide access to smoothed values over a
@@ -176,6 +176,28 @@ def accuracy(output, target, topk=(1,)):
             res.append(correct_k * (100.0 / batch_size))
         return res
 
+# https://gist.github.com/SuperShinyEyes/dcc68a08ff8b615442e3bc6a9b55a354
+def f1_score(output, target):
+    classes = output.shape[1]
+    epsilon = 1e-7
+    
+    assert output.ndim == 2
+    assert target.ndim == 1
+
+    target = F.one_hot(target, classes).to(torch.float32)
+    output = F.softmax(output, dim=1)
+
+    tp = (target * output).sum(dim=0).to(torch.float32)
+    tn = ((1 - target) * (1 - output)).sum(dim=0).to(torch.float32)
+    fp = ((1 - target) * output).sum(dim=0).to(torch.float32)
+    fn = (target * (1 - output)).sum(dim=0).to(torch.float32)
+
+    precision = tp / (tp + fp + epsilon)
+    recall = tp / (tp + fn + epsilon)
+
+    f1 = 2 * (precision * recall) / (precision + recall + epsilon)
+    f1 = f1.clamp(min=epsilon, max=1 - epsilon)
+    return f1.mean()
 
 def mkdir(path):
     try:
