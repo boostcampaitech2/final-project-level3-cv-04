@@ -1,12 +1,18 @@
 import argparse
 import os
 from importlib import import_module
-
+from src.set_seed import setSeed
 import yaml
-with open(os.path.join("custom","test","config.yaml"), "r") as f:
+
+
+
+RECIPE = "kaggle"
+
+with open(os.path.join("custom",RECIPE,"config.yaml"), "r") as f:
 	config = yaml.load(f, Loader=yaml.FullLoader)
 
-recipe = getattr(import_module("custom.test.recipe"),"Recipe")(config)
+setSeed(config["seed"])
+recipe = getattr(import_module(f"custom.{RECIPE}.recipe"),"Recipe")(config)
 
 model = recipe.getModel()
 trainDataloader, validDataloader = recipe.getDataloader()
