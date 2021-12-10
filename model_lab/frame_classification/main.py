@@ -6,7 +6,7 @@ import yaml
 
 
 
-RECIPE = "kaggle"
+RECIPE = "hospital"
 
 with open(os.path.join("custom",RECIPE,"config.yaml"), "r") as f:
 	config = yaml.load(f, Loader=yaml.FullLoader)
@@ -18,8 +18,9 @@ model = recipe.getModel()
 trainDataloader, validDataloader = recipe.getDataloader()
 optimizer = recipe.getOptimizer()
 criterion = recipe.getLoss()
+scheduler = recipe.getScheduler()
 
 from src.trainer import Trainer
 
-t = Trainer(config, trainDataloader, validDataloader, model, optimizer,criterion,None)
+t = Trainer(config, trainDataloader, validDataloader, model, optimizer,criterion,scheduler)
 t.start()

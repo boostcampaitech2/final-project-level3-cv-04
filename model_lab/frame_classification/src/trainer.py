@@ -47,6 +47,7 @@ class Trainer:
 			self.scaler.scale(loss).backward()
 			self.scaler.step(self.optimizer)
 			self.scaler.update()
+			self.scheduler.step()
 
 			preds = torch.argmax(outputs,dim=-1)
 			# labels = torch.argmax(labels,dim=-1)
@@ -54,7 +55,7 @@ class Trainer:
 			loss = loss.item() / self.config["batch"]
 			acc = (preds==labels).sum().item() / self.config["batch"]
 
-			self.WandB.trainLog(loss,acc,0)
+			self.WandB.trainLog(loss,acc,self.scheduler.get_last_lr())
 			
 			trainLoss += loss
 			trainAcc += acc
