@@ -1,7 +1,7 @@
 root : "../../input"
 train_csv : "train.csv"
 valid_csv : "valid.csv"
-batch : 64
+batch : 256
 lr : 0.01
 epoch : 30
 num_classes : 6
