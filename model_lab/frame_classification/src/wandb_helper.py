@@ -1,0 +1,55 @@
+import wandb
+from src.metric import getScore
+
+class WandB:
+	def __init__(self, config):
+
+		self.isRun = config["wandb"]
+		self.config = config
+		self.init()
+	
+	def decorator_checkRun(originalFn):
+		def wrapper(*args):
+			if args[0].isRun:
+				return originalFn(*args)
+			else:
+				return 
+		return wrapper	
+
+	@decorator_checkRun
+	def init(self):
+		wandb.login()
+		wandb.init(
+			project = self.config["wandb_project"],
+			entity = self.config["wandb_entity"],
+			name = self.config["output_dir"],
+			group = self.config["wandb_group"],
+			config = self.config,
+		)
+
+	@decorator_checkRun
+	def trainLog(self,loss,acc,lr):
+		wandb.log({
+			"train/loss" : loss,
+			"train/acc" : acc,
+			"info/lr" : lr
+		})
+	
+	@decorator_checkRun
+	def validLog(self, validLoss, validAcc, confusionMatrix, time):
+		precision, recall, f1, f1List = getScore(confusionMatrix)
+
+		wandb.log({
+			"valid/loss" : validLoss,
+			"valid/acc" : validAcc,
+			"valid/f1" : f1,
+			"valid/precision" : precision,
+			"valid/recall" : recall,
+			"valid/sub/move1_f1" : f1List[0],
+			"valid/sub/move2_f1" : f1List[1],
+			"valid/sub/move3_f1" : f1List[2],
+			"valid/sub/move4_f1" : f1List[3],
+			"valid/sub/move5_f1" : f1List[4],
+			"valid/sub/move6_f1" : f1List[5],
+			"info/valid_time" : time,
+		})
