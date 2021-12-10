@@ -8,9 +8,6 @@ import numpy as np
 SAVE_IMAGE_ROOT = "./image"
 RESIZE = (320,240)
 
-CSV_RANGE = []
-CSV_RANGE.extend([("train.csv",x) for x in range(1,10)])
-CSV_RANGE.extend([("valid.csv",x) for x in range(10,12)])
 DATASET_CUSTOM_NAME = "dataset"
 
 DATASET_NUM = range(1,12)
@@ -23,7 +20,7 @@ IMAGE_FORMAT = ".jpeg" #jpeg(jpg) | png
 # ------------------
 
 def initFile():
-	for csvName, _ in CSV_RANGE:
+	for csvName in ["train.csv","valid.csv"]:
 		if os.path.isfile(csvName):
 			os.remove(csvName)
 	
@@ -32,14 +29,17 @@ def initFile():
 		os.makedirs(os.path.join(SAVE_IMAGE_ROOT,DATASET_CUSTOM_NAME+str(i)),exist_ok=True)
 
 
-def makeInput(datasetNum, labelName, position):
+def makeInput(datasetNum):
 	rootDir = DATASET_NAME+str(datasetNum)
 	videoRoot = os.path.join(rootDir,DATASET_VIDEO)
 	videoFiles = os.listdir(videoRoot)
-
+	labelName = "train.csv"
 	cnt = 0
-	for video in tqdm(videoFiles,position=position, leave=False):
+	for idx, video in enumerate(tqdm(videoFiles,position=datasetNum-1,leave=True)):
 		labelList = []
+
+		if labelName=="train.csv" and idx > len(videoFiles) * 0.8:
+			labelName = "valid.csv"
 
 		csv = ".".join(video.split(".")[:-1])+".csv"
 		annotations = [pd.read_csv(os.path.join(rootDir,DATASET_ANNOTATION,x,csv)).to_numpy().tolist() 
@@ -48,21 +48,19 @@ def makeInput(datasetNum, labelName, position):
 			]
 
 		cap = cv2.VideoCapture(os.path.join(videoRoot,video))
-		for line in zip(*annotations):
-			vertical = list(zip(*line))
-			if 0.0 in vertical[2]:
-				continue
-			if len(set(vertical[0])) != 1:
-				continue 
-			frame = vertical[0][0]
 
-			ls = [0] * 7
+		for idx, line in enumerate(zip(*annotations)):
+			vertical = list(zip(*line))
+			if 0.0 in vertical[2] or 7.0 in vertical[2]: #0,7번 라벨 거름
+				continue
+
+			ls = [0] * 6
 			for i in vertical[2]:
 				ls[int(i)-1] += 1
 			lsSum = sum(ls)
 			ls = [x/lsSum for x in ls]
 
-			image = readFrame(cap, frame)
+			image = readFrame(cap, idx)
 			if not isHand(image):
 				continue
 			image = cv2.resize(image,RESIZE)
@@ -78,11 +76,11 @@ def makeInput(datasetNum, labelName, position):
 			oneLabel.append(video)
 			labelList.append(oneLabel)
 			cnt+=1
-		pd.DataFrame(labelList,columns=["file_name","1","2","3","4","5","6","7","is_washing","video_name"]).to_csv(labelName, mode="a",header=not os.path.isfile(labelName),index=False)
+		pd.DataFrame(labelList,columns=["file_name","1","2","3","4","5","6","is_washing","video_name"]).to_csv(labelName, mode="a",header=not os.path.isfile(labelName),index=False)
 		cap.release()
 
 def readFrame(cap, frame):
-	cap.set(cv2.CAP_PROP_FRAME_COUNT, frame)
+	cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
 	ok, image = cap.read()
 
 	if not ok:
@@ -115,17 +113,15 @@ def isHand(frame):
 
 	areas = [cv2.contourArea(x) for x in contours]
 
-	if areas[0] < 6000:
+	if areas[0] < 4000:
 		return False
 	return True
 	
 
-def start(mode):
-	position, csv = mode
-	csvName, csvNum = csv
-	makeInput(csvNum,csvName,position)
+def start(datasetNum):
+	makeInput(datasetNum)
 
 if __name__=="__main__":
 	initFile()
-	with Pool(len(CSV_RANGE)) as p:
-		p.map(start,enumerate(CSV_RANGE))
+	with Pool(len(DATASET_NUM)) as p:
+		p.map(start,DATASET_NUM)
