@@ -6,3 +6,7 @@ input/*
 .vscode
 
 **/*.pyc
+
+**/wandb
+
+output/*
