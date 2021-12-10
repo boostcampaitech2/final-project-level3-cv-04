@@ -19,4 +19,4 @@ def getScore(confusionMatrix):
 		f1List.append(f1)
 	
 	return sum(precisionList)/numClasses, sum(recallList)/numClasses, sum(f1List)/numClasses, f1List
-	
+
