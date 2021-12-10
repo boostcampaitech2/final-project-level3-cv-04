@@ -1,7 +1,0 @@
-root : "../../input"
-train_csv : "train.csv"
-valid_csv : "valid.csv"
-batch : 256
-lr : 0.01
-epoch : 50
-num_classes : 7
