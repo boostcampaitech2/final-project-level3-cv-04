@@ -32,18 +32,18 @@ class Recipe(AbstractRecipe):
 
 		return trainTransform, validTransform
 
-	def make_weights_for_balanced_classes(self, dataset, nclasses):                        
-		count = [0] * nclasses                                                      
-		for i in range(len(dataset)):                                                         
-				count[dataset.getLabelForWeighted(i)] += 1  
-		weight_per_class = [0.] * nclasses                                      
-		avg = float(sum(count)) / len(count)                    
-		for i in range(nclasses):                                                   
-				weight_per_class[i] = avg/float(count[i])     
-		weight = [0] * len(dataset)   
-		for i in range(len(dataset)):                                          
-				weight[i] = weight_per_class[dataset.getLabelForWeighted(i)]                                  
-		return weight
+	# def make_weights_for_balanced_classes(self, dataset, nclasses):                        
+	# 	count = [0] * nclasses                                                      
+	# 	for i in range(len(dataset)):                                                         
+	# 			count[dataset.getLabelForWeighted(i)] += 1  
+	# 	weight_per_class = [0.] * nclasses                                      
+	# 	avg = float(sum(count)) / len(count)                    
+	# 	for i in range(nclasses):                                                   
+	# 			weight_per_class[i] = avg/float(count[i])     
+	# 	weight = [0] * len(dataset)   
+	# 	for i in range(len(dataset)):                                          
+	# 			weight[i] = weight_per_class[dataset.getLabelForWeighted(i)]                                  
+	# 	return weight
 
 	def _buildDataloader(self):
 		from torch.utils.data import DataLoader
@@ -53,22 +53,24 @@ class Recipe(AbstractRecipe):
 
 		tDataset = WashingDataset("train",self.config["root"],self.config["train_csv"],trainT)
 
-		w = self.make_weights_for_balanced_classes(tDataset,self.config["num_classes"])
-		sampler = WeightedRandomSampler(w, len(w), replacement=True) 
+		# w = self.make_weights_for_balanced_classes(tDataset,self.config["num_classes"])
+		# sampler = WeightedRandomSampler(w, len(w), replacement=True) 
 		self.trainDataloader = DataLoader(
 			dataset = tDataset,
 			batch_size= self.config["batch"],
-			# shuffle=True,
+			shuffle=True,
 			drop_last=True,
 			num_workers=4,
-			sampler=sampler
+			pin_memory=True
+			# sampler=sampler
 		)
 		self.validDataloader = DataLoader(
 			dataset = WashingDataset("valid",self.config["root"],self.config["valid_csv"],validT),
 			batch_size= self.config["batch"],
 			shuffle=False,
 			drop_last=False,
-			num_workers=2
+			num_workers=2,
+			pin_memory=True
 		)
 
 	
@@ -84,14 +86,14 @@ class Recipe(AbstractRecipe):
 		)
 
 	def _buildOptimizer(self):
-		self.optimizer = torch.optim.AdamW(params=self.model.parameters(),lr=self.config["lr"])
+		self.optimizer = torch.optim.AdamW(params=self.model.parameters(),lr=0)
 
 	def _buildLoss(self):
-		self.loss = torch.nn.CrossEntropyLoss()
-		# self.loss = torch.nn.BCEWithLogitsLoss()
+		# self.loss = torch.nn.CrossEntropyLoss()
+		self.loss = FocalLoss()
 
 	def _buildScheduler(self):
-		self.scheduler = CosineAnnealingWarmUpRestarts(self.optimizer, T_0=len(self.trainDataloader) , T_up=len(self.trainDataloader),gamma=0.9 )
+		self.scheduler = CosineAnnealingWarmUpRestarts(self.optimizer, eta_max= self.config["lr"],T_0=len(self.trainDataloader)*10 , T_up=len(self.trainDataloader),gamma=0.9)
 
 	def build(self):
 		self._buildDataloader()
@@ -101,6 +103,27 @@ class Recipe(AbstractRecipe):
 		self._buildScheduler()
 
 
+import torch.nn as nn
+class FocalLoss(nn.Module):
+	def __init__(self, alpha=1, gamma=2, logits=False, reduce=True):
+		super(FocalLoss, self).__init__()
+		self.alpha = alpha
+		self.gamma = gamma
+		self.logits = logits
+		self.reduce = reduce
+		self.ce = nn.CrossEntropyLoss(reduction="none")
+
+	def forward(self, inputs, targets):
+	
+		ce_loss = self.ce(inputs, targets)
+
+		pt = torch.exp(-ce_loss)
+		F_loss = self.alpha * (1-pt)**self.gamma * ce_loss
+
+		if self.reduce:
+				return torch.mean(F_loss)
+		else:
+				return F_loss
 
 import math
 from torch.optim.lr_scheduler import _LRScheduler
