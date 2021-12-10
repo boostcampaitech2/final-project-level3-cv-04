@@ -25,11 +25,9 @@ class Trainer:
 	def start(self):
 		for epoch in range(self.config["epoch"]):
 			self.train()
-			t = time.time()
-			validLoss, validAcc, validConfusionMatrix = self.valid()
-			self.WandB.validLog(validLoss,validAcc,validConfusionMatrix,time.time() - t)
+			self.valid()
 
-			if self.saveHelper.checkBestIoU(validAcc,epoch):
+			if self.saveHelper.checkBestF1(self.WandB.getF1(),epoch):
 				self.saveHelper.saveModel(epoch,self.model,self.optimizer,self.scheduler)
 		
 	def train(self):
@@ -68,12 +66,15 @@ class Trainer:
 
 		confusion_matrix = torch.zeros(self.config["num_classes"],self.config["num_classes"])
 
+		t = time.time()
 		with torch.no_grad():
 			self.model.eval()
 		
-			trainLoss = 0
-			trainAcc = 0
+			validLoss = 0
+			validAcc = 0
 			validTQDM = tqdm(self.validDataloader)
+			predList = None
+			yTrueList = None
 			for images,labels in validTQDM:
 				images = images.to(self.device)
 				labels = labels.to(self.device)
@@ -84,16 +85,21 @@ class Trainer:
 				# labels = torch.argmax(labels,dim=-1)
 				preds = torch.argmax(outputs,dim=-1)
 				
+				loss = loss.item() / self.config["batch"]
+				acc = (preds==labels).sum().item() / self.config["batch"]
+
 				for t, p in zip(labels.view(-1),preds.view(-1)):
 					confusion_matrix[t.long(), p.long()] += 1
 
-				trainLoss += loss.item()
-				trainAcc += (preds==labels).sum().item()
-		
+				validLoss += loss
+				validAcc += acc
 
-		trainLoss = trainLoss / len(self.validDataloader) / self.config["batch"]
-		trainAcc = trainAcc / len(self.validDataloader) / self.config["batch"]
-		return trainLoss, trainAcc,confusion_matrix
-		# print(f"valid loss = {trainLoss:04f}")
-		# print(f"valid acc = {trainAcc:04f}")		
-		# print(np.round_( torch.div(confusion_matrix, len(self.validDataloader)*self.config["batch"]/100).numpy(),1))
+				labels = labels.cpu()
+				preds = preds.cpu()
+				predList = np.hstack((predList, preds)) if predList is not None else np.array(preds)
+				yTrueList = np.hstack((yTrueList, labels)) if yTrueList is not None else np.array(labels)
+
+		validLoss = validLoss / len(self.validDataloader)
+		validAcc = validAcc / len(self.validDataloader)
+
+		self.WandB.validLog(predList,yTrueList,validLoss,validAcc,confusion_matrix,time.time()-t,len(self.validDataloader))

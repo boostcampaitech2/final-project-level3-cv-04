@@ -1,13 +1,14 @@
 import wandb
-from src.metric import getScore
+from src.metric import getScore, getTimePerBatch
 
 class WandB:
 	def __init__(self, config):
 
 		self.isRun = config["wandb"]
 		self.config = config
+		self.nowF1 = 0
 		self.init()
-	
+
 	def decorator_checkRun(originalFn):
 		def wrapper(*args):
 			if args[0].isRun:
@@ -36,8 +37,13 @@ class WandB:
 		})
 	
 	@decorator_checkRun
-	def validLog(self, validLoss, validAcc, confusionMatrix, time):
+	def validLog(self, preds, y_true, validLoss, validAcc, confusionMatrix, time, loaderLength):
 		precision, recall, f1, f1List = getScore(confusionMatrix)
+		self.nowF1 = f1
+		conf_matrix = wandb.plot.confusion_matrix(probs=None,
+			preds=preds, y_true=y_true,
+			class_names= self.config["class_names"]
+		)
 
 		wandb.log({
 			"valid/loss" : validLoss,
@@ -51,5 +57,9 @@ class WandB:
 			"valid/sub/move4_f1" : f1List[3],
 			"valid/sub/move5_f1" : f1List[4],
 			"valid/sub/move6_f1" : f1List[5],
-			"info/valid_time" : time,
+			"info/valid_time" : getTimePerBatch(time,self.config["batch"],loaderLength),
+			"confusion_matrix" : conf_matrix,
 		})
+
+	def getF1(self):
+		return self.nowF1
