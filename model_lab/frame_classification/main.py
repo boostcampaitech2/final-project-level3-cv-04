@@ -6,7 +6,7 @@ import yaml
 
 
 
-RECIPE = "hospital"
+RECIPE = "full"
 
 with open(os.path.join("custom",RECIPE,"config.yaml"), "r") as f:
 	config = yaml.load(f, Loader=yaml.FullLoader)
