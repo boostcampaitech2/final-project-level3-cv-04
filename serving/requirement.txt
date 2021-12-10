@@ -1,6 +1,0 @@
-torch
-opencv-python
-timm
-albumentations
-pyqt5
-flask
