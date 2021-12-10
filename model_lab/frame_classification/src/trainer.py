@@ -18,7 +18,7 @@ class Trainer:
 		self.criterion = criterion
 		self.scheduler = scheduler
 		self.scaler = GradScaler()
-		self.saveHelper = SaveHelper(config["save_capacity"],config["output_path"],config["output_dir"])
+		self.saveHelper = SaveHelper(config)
 		self.config["save_dirs"] = self.saveHelper.getSavedDir()
 		self.WandB = WandB(self.config)
 
@@ -29,6 +29,7 @@ class Trainer:
 
 			if self.saveHelper.checkBestF1(self.WandB.getF1(),epoch):
 				self.saveHelper.saveModel(epoch,self.model,self.optimizer,self.scheduler)
+				self.saveHelper.removeModel()
 		
 	def train(self):
 		self.model.train()

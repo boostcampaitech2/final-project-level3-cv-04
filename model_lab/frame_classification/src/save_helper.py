@@ -1,6 +1,7 @@
 from collections import deque
 import os
 import torch
+import shutil
 
 class SaveHelper:
 	'''
@@ -8,12 +9,14 @@ class SaveHelper:
 	deque 형태로 이름을 가지고있고, 새로운 최고값이 들어왔을 때 큐가 꽉찼다면 가장 낮은 점수를 가진 모델을 제거합니다
 	'''
 	MODELDIR = "models"
-	def __init__(self, capacity, savePath ,savedDir) -> None:
+	CONFIGDIR = "config"
+	def __init__(self, config) -> None:
 		self.savedList = deque()
-		self.capacity = max(capacity,2)
+		self.capacity = max(config["save_capacity"],2)
 		self.bestEpoch = 0
-		self.bestIoU = 0
-		self.savedDir = os.path.join(savePath,self.validDirNum(savePath,savedDir))
+		self.F1 = 0 
+		self.savedDir = os.path.join(config["output_path"],self.validDirNum(config["output_path"],config["output_dir"]))
+		shutil.copytree(f"./custom/{config['custom_name']}",os.path.join(self.savedDir,self.CONFIGDIR))
 		os.makedirs(os.path.join(self.savedDir,self.MODELDIR))
 
 	def validDirNum(self, savePath, savedDir):
@@ -33,12 +36,12 @@ class SaveHelper:
 	def _fileFormat(epoch):
 		return f"epoch{epoch}.pth"
 
-	def checkBestIoU(self, avrg_iou, epoch):
+	def checkBestF1(self, F1, epoch):
 		
-		ok = avrg_iou > self.bestIoU
+		ok = F1 > self.F1
 
 		if ok:
-			self.bestIoU = avrg_iou	
+			self.F1 = F1	
 			self.savedList.append(epoch)
 			self.bestEpoch = epoch
 
@@ -66,6 +69,7 @@ class SaveHelper:
 			'optimizer' : optimizer.state_dict(),
 			'scheduler' : scheduler,
 		}
-
+		
 		torch.save(saveDict, self._concatSaveDirByEpoch(epoch))
+
   

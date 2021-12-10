@@ -10,7 +10,7 @@ RECIPE = "kaggle"
 
 with open(os.path.join("custom",RECIPE,"config.yaml"), "r") as f:
 	config = yaml.load(f, Loader=yaml.FullLoader)
-
+config["custom_name"] = RECIPE
 setSeed(config["seed"])
 recipe = getattr(import_module(f"custom.{RECIPE}.recipe"),"Recipe")(config)
 
