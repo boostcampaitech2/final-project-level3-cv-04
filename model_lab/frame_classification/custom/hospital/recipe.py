@@ -39,7 +39,8 @@ class Recipe(AbstractRecipe):
 		weight_per_class = [0.] * nclasses                                      
 		avg = float(sum(count)) / len(count)                    
 		for i in range(nclasses):                                                   
-				weight_per_class[i] = avg/float(count[i])           
+				weight_per_class[i] = avg/float(count[i])  
+		print(weight_per_class)         
 		weight = [0] * len(dataset)   
 		for i in range(len(dataset)):                                          
 				weight[i] = weight_per_class[dataset.getLabelForWeighted(i)]                                  
@@ -53,15 +54,15 @@ class Recipe(AbstractRecipe):
 
 		tDataset = WashingDataset("train",self.config["root"],self.config["train_csv"],trainT)
 
-		w = self.make_weights_for_balanced_classes(tDataset,self.config["num_classes"])
-		sampler = WeightedRandomSampler(w, len(w), replacement=True) 
+		# w = self.make_weights_for_balanced_classes(tDataset,self.config["num_classes"])
+		# sampler = WeightedRandomSampler(w, len(w), replacement=True) 
 		self.trainDataloader = DataLoader(
 			dataset = tDataset,
 			batch_size= self.config["batch"],
-			# shuffle=True,
+			shuffle=True,
 			drop_last=True,
 			num_workers=4,
-			sampler=sampler
+			# sampler=sampler
 		)
 		self.validDataloader = DataLoader(
 			dataset = WashingDataset("valid",self.config["root"],self.config["valid_csv"],validT),
