@@ -34,7 +34,7 @@ class Trainer:
 			if self.saveHelper.checkBestF1(nowF1, epoch):
 				self.saveHelper.saveModel(epoch,self.model,self.optimizer,self.scheduler)
 				self.saveHelper.removeModel()
-				self.fullTQDM.set_postfix({"Last Save Model is epoch" : epoch, "F1":nowF1})
+				self.fullTQDM.set_postfix({"Last Saved Epoch" : epoch, "F1":nowF1})
 
 		
 	def train(self):
@@ -109,5 +109,5 @@ class Trainer:
 
 		validLoss = validLoss / len(self.validDataloader)
 		validAcc = validAcc / len(self.validDataloader)
-
-		self.WandB.validLog(predList,yTrueList,validLoss,validAcc,confusion_matrix,time.time()-t)
+		t = (time.time()-t) / len(self.validDataloader) / self.config["batch"]
+		self.WandB.validLog(predList,yTrueList,validLoss,validAcc,confusion_matrix,t)
