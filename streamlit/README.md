@@ -1,6 +1,6 @@
 # Prepare
 
-## For Window User
+## For Window User 
 Installing aiortc on windows may sometimes requires Microsoft Build Tools for Visual C++ libraries installed. You can easily fix this error by installing any ONE of these choices:
 
 While the error is calling for VC++ 14.0 - but newer versions of Visual C++ libraries works as well.
@@ -16,8 +16,6 @@ Afterwards, Select: Workloads → Desktop development with C++, then for Individ
 Windows 10 SDK
 C++ x64/x86 build tools
 
-This is refer from [VidGear](https://abhitronix.github.io/vidgear/v0.2.3-stable/installation/source_install/)
-
-
+For more Detail : [vidgear](https://abhitronix.github.io/vidgear/v0.2.3-stable/installation/source_install/)
 ## Install Dependency
 ` $ pip install -r requirements.txt `
