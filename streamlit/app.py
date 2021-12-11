@@ -1,12 +1,8 @@
 import streamlit as st
-import numpy as np
-import cv2
 import av
 import queue
-import urllib.request
 
 from typing import List, NamedTuple
-from pathlib import Path
 from streamlit_webrtc import (
     VideoProcessorBase,
     RTCConfiguration,
@@ -16,35 +12,24 @@ from streamlit_webrtc import (
 
 #모델 불러오기
 import pickle
-import timm
 import torch
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
-# 뭔지몰라서 일단 냄겨둿어용
 RTC_CONFIGURATION = RTCConfiguration(
     {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
 )
 
 def main():
-  st.header("WebRTC demo")
-  st.subheader(handwash_app())
+  st.header("무럭무럭감자밭 demo")
+  st.subheader("Hand Wash Recognition")
+  handwash_app()
 
 def handwash_app():
     MODEL_LOCAL_PATH = "./models/backbone.pickle"
     
-    CLASSES = [
-        '1',
-        '2',
-        '3',
-        '4',
-        '5',
-        '6',
-        '7'
-    ] # 아마 성욱님 저거 학습된게 7개 일거에요? 맞을겁니다
-
-    class Prediction(NamedTuple):
-        name: str
+    class Prediction(List):
+        step: int
         
     class model(VideoProcessorBase):
         confidence_threshold: float
@@ -63,31 +48,29 @@ def handwash_app():
 
             except:
                 print("model load fail")
+                
             self.result_queue = queue.Queue()
 
         def recv(self, frame: av.VideoFrame) -> av.VideoFrame: 
             image = frame.to_ndarray(format="bgr24")
-            image = self.transform(image=image)['image']
+            data = self.transform(image=image)['image']
 
-            image = image.unsqueeze(0) # 배치 1 추가
-            image = image.to(self.device)
+            data = data.unsqueeze(0) # add batch 1
+            data = data.to(self.device)
             with torch.no_grad():
                 self._net.eval()
-                predict = torch.argmax(self._net(image), dim=1).item() + 1
+                predict = torch.argmax(self._net(data), dim=1).item() + 1
             self.result_queue.put(predict)
 
             return av.VideoFrame.from_ndarray(image, format="bgr24")
     
-    """
-    실질적인 출력이 나오는 곳
-    """
     webrtc_ctx = webrtc_streamer(
-        key="handwash_recognition", # context = st.session_state[key] 이런식으로 사용됨
-        mode=WebRtcMode.SENDRECV, # recv 함수를 이용해서 받는겁요
+        key="handwash_recognition", # context = st.session_state[key] 
+        mode=WebRtcMode.SENDRECV, 
         rtc_configuration=RTC_CONFIGURATION,
         video_processor_factory=model,
-        media_stream_constraints={"video": True, "audio": False}, # 비디오만 사용
-        async_processing=True, # 비동기 맞나
+        media_stream_constraints={"video": True, "audio": False}, 
+        async_processing=True,
     )
 
     if st.checkbox("Show prediction", value=True):
@@ -101,7 +84,7 @@ def handwash_app():
                         )
                     except queue.Empty:
                         result = None
-                    labels_placeholder.table(result)
+                    labels_placeholder.markdown(result)
                 else:
                     break
 
