@@ -4,6 +4,7 @@ input/*
 !input/README.md
 !input/make_kaggle_input.py
 !input/make_full_input.py
+!input/make_full_yolo_input.ipynb
 
 .vscode
 
