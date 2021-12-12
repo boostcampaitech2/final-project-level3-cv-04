@@ -19,5 +19,5 @@ Our train code is based on [torchvision video classification reference](https://
         ├──matrix                          # confusion matrix 저장 폴더
         |    └──output_{1}~{epochs}.png    # epoch마다 저장된 valid confusion matrix
         ├──exp_name.yaml                   # 실험에 사용한 yaml 파일    
-        └──best_log.txt                    # best validation score 갱신 시 Accuracy 기록
+        └──best_log.txt                    # F1score Accuracy 기록
   ```
