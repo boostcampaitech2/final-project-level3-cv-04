@@ -6,13 +6,12 @@ import random
 import yaml
 import time
 from importlib import import_module
-import utils.utils as utils
 
 from torch.utils.data import DataLoader
 from data_set.data_set import HandWashDataset, OneSamplePerVideoDataset
 from data_set.data_augmenation import get_transform
 from model.loss import create_criterion
-from utils.logger import yaml_logger, make_dir, best_logger
+from utils.utils import yaml_logger, make_dir, best_logger, save_model, save_confusion_matrix, ConfusionMatrix, MetricLogger
 
 # Seed 고정
 def seed_everything(random_seed):
@@ -25,14 +24,14 @@ def seed_everything(random_seed):
     random.seed(random_seed)
 
 
-def train_one_epoch(model, criterion, optimizer, lr_scheduler, data_loader, device, epoch, print_freq, scaler=None):
-    model.train()
-    metric_logger = utils.MetricLogger(delimiter="  ")
-    metric_logger.add_meter("lr", utils.SmoothedValue(window_size=1, fmt="{value}"))
-    metric_logger.add_meter("clips/s", utils.SmoothedValue(window_size=10, fmt="{value:.3f}"))
-
+def train_one_epoch(model, criterion, optimizer, lr_scheduler, data_loader, device, epoch, print_freq, num_classes, scaler=None):
+    num_iteration = len(data_loader)
     header = f"Epoch: [{epoch}]"
-    for video, target in metric_logger.log_every(data_loader, print_freq, header):
+    metric_logger = MetricLogger(num_iteration, header)
+    confusion_matrix = ConfusionMatrix(num_classes)
+
+    model.train()
+    for i, (video, target) in enumerate(data_loader):
         start_time = time.time()
         video, target = video.to(device), target.to(device)
         with torch.cuda.amp.autocast(enabled=scaler is not None):
@@ -49,46 +48,52 @@ def train_one_epoch(model, criterion, optimizer, lr_scheduler, data_loader, devi
             loss.backward()
             optimizer.step()
 
-        acc1, acc2 = utils.accuracy(output, target, topk=(1, 2))
-        f1 = utils.f1_score(output, target)
-        batch_size = video.shape[0]
-        metric_logger.update(loss=loss.item(), lr=optimizer.param_groups[0]["lr"])
-        metric_logger.meters["acc1"].update(acc1.item(), n=batch_size)
-        metric_logger.meters["acc2"].update(acc2.item(), n=batch_size)
-        metric_logger.meters["f1"].update(f1.item(), n=batch_size)
-        metric_logger.meters["clips/s"].update(batch_size / (time.time() - start_time))
+        _, preds = torch.max(output, 1)
+        confusion_matrix.update(target, preds)        
+
+        if i % print_freq == 0:
+            accuracy, class_accuracy = confusion_matrix.get_accuracy()
+            f1, class_f1 = confusion_matrix.get_f1()
+            
+            metric_logger.update(Loss=loss.item(), F1=f1, Accuracy=accuracy)
+            metric_logger.log(i)
+
         lr_scheduler.step()
 
 
-def evaluate(model, criterion, data_loader, device):
+def evaluate(model, criterion, data_loader, print_freq, num_classes, device):
     model.eval()
-    metric_logger = utils.MetricLogger(delimiter="  ")
+    num_iteration = len(data_loader)
     header = "Test:"
+    metric_logger = MetricLogger(num_iteration, header)
+    confusion_matrix = ConfusionMatrix(num_classes)
+
+    model.eval()
     with torch.inference_mode():
-        for video, target in metric_logger.log_every(data_loader, 100, header):
+        for i, (video, target) in enumerate(data_loader):
             video = video.to(device, non_blocking=True)
             target = target.to(device, non_blocking=True)
             output = model(video)
             loss = criterion(output, target)
 
-            acc1, acc2 = utils.accuracy(output, target, topk=(1, 2))
-            f1 = utils.f1_score(output, target)
-            # FIXME need to take into account that the datasets
-            # could have been padded in distributed setup
-            batch_size = video.shape[0]
-            metric_logger.update(loss=loss.item())
-            metric_logger.meters["acc1"].update(acc1.item(), n=batch_size)
-            metric_logger.meters["acc2"].update(acc2.item(), n=batch_size)
-            metric_logger.meters["f1"].update(f1.item(), n=batch_size)
-    # gather the stats from all processes
-    metric_logger.synchronize_between_processes()
+            _, preds = torch.max(output, 1)
+            confusion_matrix.update(target, preds)
 
+            if i % print_freq == 0:
+                accuracy, class_accuracy = confusion_matrix.get_accuracy()
+                f1, class_f1 = confusion_matrix.get_f1()
+                
+                metric_logger.update(Loss=loss.item(), F1=f1, Accuracy=accuracy)
+                metric_logger.log(i)
+            
+    accuracy, class_accuracy = confusion_matrix.get_accuracy()
+    f1, class_f1 = confusion_matrix.get_f1()
     print(
-        " * Clip Acc@1 {top1.global_avg:.3f} Clip Acc@2 {top2.global_avg:.3f} Clip F1 {f1.global_avg:.3f}".format(
-            top1=metric_logger.acc1, top2=metric_logger.acc2, f1=metric_logger.f1
+        f" * Acc {accuracy:.3f} Clip F1 {f1:.3f}".format(
+            accuracy=accuracy, f1=f1
         )
     )
-    return metric_logger.acc1.global_avg, metric_logger.f1.global_avg
+    return confusion_matrix.get(), (accuracy, f1)
 
 def run(args, cfg, device):
     seed_everything(cfg['seed'])
@@ -103,7 +108,8 @@ def run(args, cfg, device):
     val_transform = get_transform(cfg['transforms']['valid'])
 
     # # DataSet 설정
-    train_dataset = OneSamplePerVideoDataset(cfg['train_path'], cfg['frame_per_clip'], transform=train_transform)
+    # train_dataset = OneSamplePerVideoDataset(cfg['train_path'], cfg['frame_per_clip'], transform=train_transform)
+    train_dataset = HandWashDataset(cfg['train_path'], cfg['frame_per_clip'], cfg['frame_per_clip'], transform=train_transform)
     valid_dataset = HandWashDataset(cfg['valid_path'], cfg['frame_per_clip'], cfg['frame_per_clip'], transform=val_transform)
 
     # # DataLoader 설정
@@ -130,24 +136,20 @@ def run(args, cfg, device):
     start_time = time.time()
     scaler = torch.cuda.amp.GradScaler() if cfg['fp16'] else None
 
+    classes = valid_dataset.classes
     # 학습
     for epoch in range(1, N_EPOCHS + 1):
         print('Epoch:', epoch)
-        train_one_epoch(model, criterion, optimizer, scheduler, train_loader, device, epoch, print_freq=100, scaler=scaler)
-        metrics = evaluate(model, criterion, valid_loader, device)
+        train_one_epoch(model, criterion, optimizer, scheduler, train_loader, device, epoch, print_freq=100, num_classes=cfg['model']['class'], scaler=scaler)
+        confusion_matrix, metrics = evaluate(model, criterion, valid_loader, 100, num_classes=cfg['model']['class'], device=device)
+        
+        save_confusion_matrix(cfg['saved_dir'], epoch, confusion_matrix, classes)
         best_logger(cfg['saved_dir'],epoch, N_EPOCHS, metrics)
 
         if cfg['saved_dir']:
-                checkpoint = {
-                    "model": model.model.state_dict(),
-                    "optimizer": optimizer.state_dict(),
-                    "lr_scheduler": scheduler.state_dict(),
-                    "epoch": epoch,
-                }
-                if scaler:
-                    checkpoint["scaler"] = scaler.state_dict()
-                utils.save_on_master(checkpoint, os.path.join(cfg['saved_dir'], f"model_{epoch}.pth"))
-                utils.save_on_master(checkpoint, os.path.join(cfg['saved_dir'], "checkpoint.pth"))
+            checkpoint = model.model.state_dict()
+            save_model(checkpoint, os.path.join(cfg['saved_dir'], f"model/model_{epoch}.pth"))
+            save_model(checkpoint, os.path.join(cfg['saved_dir'], "model/checkpoint.pth"))
     
     print('Execution time:', '{:5.2f}'.format(time.time() - start_time), 'seconds')
 

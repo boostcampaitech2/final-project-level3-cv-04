@@ -1,278 +1,87 @@
-""" This code is from
-https://github.com/pytorch/vision/blob/main/references/video_classification/utils.py
-"""
-import datetime
-import errno
+from collections import defaultdict
 import os
-import time
-from collections import defaultdict, deque
-
+import shutil
 import torch
-import torch.distributed as dist
-import torch.nn.functional as F
+import matplotlib.pyplot as plt
+import seaborn as sn
+import pandas as pd
+import numpy as np
 
-class SmoothedValue:
-    """Track a series of values and provide access to smoothed values over a
-    window or the global series average.
-    """
+# 디렉토리 생성
+def make_dir(saved_dir, saved_name):
+    path = os.path.join(saved_dir, saved_name)
+    os.makedirs(path, exist_ok=True)
+    os.makedirs(os.path.join(path, 'model'), exist_ok=True)
+    os.makedirs(os.path.join(path, 'matrix'), exist_ok=True)
 
-    def __init__(self, window_size=20, fmt=None):
-        if fmt is None:
-            fmt = "{median:.4f} ({global_avg:.4f})"
-        self.deque = deque(maxlen=window_size)
-        self.total = 0.0
-        self.count = 0
-        self.fmt = fmt
+    return path
 
-    def update(self, value, n=1):
-        self.deque.append(value)
-        self.count += n
-        self.total += value * n
+# yaml 파일 saved 폴더에 저장
+def yaml_logger(args, cfg):
+    file_name = f"{cfg['exp_name']}.yaml"
+    shutil.copyfile(args.config, os.path.join(cfg['saved_dir'], file_name))
 
-    def synchronize_between_processes(self):
-        """
-        Warning: does not synchronize the deque!
-        """
-        if not is_dist_avail_and_initialized():
-            return
-        t = torch.tensor([self.count, self.total], dtype=torch.float64, device="cuda")
-        dist.barrier()
-        dist.all_reduce(t)
-        t = t.tolist()
-        self.count = int(t[0])
-        self.total = t[1]
+def best_logger(saved_dir, epoch, num_epochs, metrics):
+    accuracy, f1 = metrics
+    with open(os.path.join(saved_dir, 'best_log.txt'), 'a', encoding='utf-8') as f:
+        f.write(f"Epoch [{epoch}/{num_epochs}], Accuracy :{accuracy}, F1 Score :{f1}\n")
 
-    @property
-    def median(self):
-        d = torch.tensor(list(self.deque))
-        return d.median().item()
-
-    @property
-    def avg(self):
-        d = torch.tensor(list(self.deque), dtype=torch.float32)
-        return d.mean().item()
-
-    @property
-    def global_avg(self):
-        return self.total / self.count
-
-    @property
-    def max(self):
-        return max(self.deque)
-
-    @property
-    def value(self):
-        return self.deque[-1]
-
-    def __str__(self):
-        return self.fmt.format(
-            median=self.median, avg=self.avg, global_avg=self.global_avg, max=self.max, value=self.value
-        )
-
-
-class MetricLogger:
-    def __init__(self, delimiter="\t"):
-        self.meters = defaultdict(SmoothedValue)
-        self.delimiter = delimiter
-
-    def update(self, **kwargs):
-        for k, v in kwargs.items():
-            if isinstance(v, torch.Tensor):
-                v = v.item()
-            assert isinstance(v, (float, int))
-            self.meters[k].update(v)
-
-    def __getattr__(self, attr):
-        if attr in self.meters:
-            return self.meters[attr]
-        if attr in self.__dict__:
-            return self.__dict__[attr]
-        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{attr}'")
-
-    def __str__(self):
-        loss_str = []
-        for name, meter in self.meters.items():
-            loss_str.append(f"{name}: {str(meter)}")
-        return self.delimiter.join(loss_str)
-
-    def synchronize_between_processes(self):
-        for meter in self.meters.values():
-            meter.synchronize_between_processes()
-
-    def add_meter(self, name, meter):
-        self.meters[name] = meter
-
-    def log_every(self, iterable, print_freq, header=None):
-        i = 0
-        if not header:
-            header = ""
-        start_time = time.time()
-        end = time.time()
-        iter_time = SmoothedValue(fmt="{avg:.4f}")
-        data_time = SmoothedValue(fmt="{avg:.4f}")
-        space_fmt = ":" + str(len(str(len(iterable)))) + "d"
-        if torch.cuda.is_available():
-            log_msg = self.delimiter.join(
-                [
-                    header,
-                    "[{0" + space_fmt + "}/{1}]",
-                    "eta: {eta}",
-                    "{meters}",
-                    "time: {time}",
-                    "data: {data}",
-                    "max mem: {memory:.0f}",
-                ]
-            )
-        else:
-            log_msg = self.delimiter.join(
-                [header, "[{0" + space_fmt + "}/{1}]", "eta: {eta}", "{meters}", "time: {time}", "data: {data}"]
-            )
-        MB = 1024.0 * 1024.0
-        for obj in iterable:
-            data_time.update(time.time() - end)
-            yield obj
-            iter_time.update(time.time() - end)
-            if i % print_freq == 0:
-                eta_seconds = iter_time.global_avg * (len(iterable) - i)
-                eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
-                if torch.cuda.is_available():
-                    print(
-                        log_msg.format(
-                            i,
-                            len(iterable),
-                            eta=eta_string,
-                            meters=str(self),
-                            time=str(iter_time),
-                            data=str(data_time),
-                            memory=torch.cuda.max_memory_allocated() / MB,
-                        )
-                    )
-                else:
-                    print(
-                        log_msg.format(
-                            i, len(iterable), eta=eta_string, meters=str(self), time=str(iter_time), data=str(data_time)
-                        )
-                    )
-            i += 1
-            end = time.time()
-        total_time = time.time() - start_time
-        total_time_str = str(datetime.timedelta(seconds=int(total_time)))
-        print(f"{header} Total time: {total_time_str}")
-
-
-def accuracy(output, target, topk=(1,)):
-    """Computes the accuracy over the k top predictions for the specified values of k"""
-    with torch.inference_mode():
-        maxk = max(topk)
-        batch_size = target.size(0)
-
-        _, pred = output.topk(maxk, 1, True, True)
-        pred = pred.t()
-        correct = pred.eq(target[None])
-
-        res = []
-        for k in topk:
-            correct_k = correct[:k].flatten().sum(dtype=torch.float32)
-            res.append(correct_k * (100.0 / batch_size))
-        return res
-
-# https://gist.github.com/SuperShinyEyes/dcc68a08ff8b615442e3bc6a9b55a354
-def f1_score(output, target):
-    classes = output.shape[1]
-    epsilon = 1e-7
-    
-    assert output.ndim == 2
-    assert target.ndim == 1
-
-    target = F.one_hot(target, classes).to(torch.float32)
-    output = F.softmax(output, dim=1)
-
-    tp = (target * output).sum(dim=0).to(torch.float32)
-    tn = ((1 - target) * (1 - output)).sum(dim=0).to(torch.float32)
-    fp = ((1 - target) * output).sum(dim=0).to(torch.float32)
-    fn = (target * (1 - output)).sum(dim=0).to(torch.float32)
-
-    precision = tp / (tp + fp + epsilon)
-    recall = tp / (tp + fn + epsilon)
-
-    f1 = 2 * (precision * recall) / (precision + recall + epsilon)
-    f1 = f1.clamp(min=epsilon, max=1 - epsilon)
-    return f1.mean()
-
-def mkdir(path):
-    try:
-        os.makedirs(path)
-    except OSError as e:
-        if e.errno != errno.EEXIST:
-            raise
-
-
-def setup_for_distributed(is_master):
-    """
-    This function disables printing when not in master process
-    """
-    import builtins as __builtin__
-
-    builtin_print = __builtin__.print
-
-    def print(*args, **kwargs):
-        force = kwargs.pop("force", False)
-        if is_master or force:
-            builtin_print(*args, **kwargs)
-
-    __builtin__.print = print
-
-
-def is_dist_avail_and_initialized():
-    if not dist.is_available():
-        return False
-    if not dist.is_initialized():
-        return False
-    return True
-
-
-def get_world_size():
-    if not is_dist_avail_and_initialized():
-        return 1
-    return dist.get_world_size()
-
-
-def get_rank():
-    if not is_dist_avail_and_initialized():
-        return 0
-    return dist.get_rank()
-
-
-def is_main_process():
-    return get_rank() == 0
-
-
-def save_on_master(*args, **kwargs):
-    if is_main_process():
+def save_model(*args, **kwargs):
         torch.save(*args, **kwargs)
 
+def save_confusion_matrix(saved_dir, epoch, confusion_matrix, classes):
+    df_cm = pd.DataFrame(confusion_matrix.numpy(), index = classes, columns = classes)
+    plt.figure(figsize = (12,7))
+    sn.heatmap(df_cm, annot=True)
+    plt.savefig(os.path.join(saved_dir, f'matrix/output_{epoch}.png'))
 
-def init_distributed_mode(args):
-    if "RANK" in os.environ and "WORLD_SIZE" in os.environ:
-        args.rank = int(os.environ["RANK"])
-        args.world_size = int(os.environ["WORLD_SIZE"])
-        args.gpu = int(os.environ["LOCAL_RANK"])
-    elif "SLURM_PROCID" in os.environ:
-        args.rank = int(os.environ["SLURM_PROCID"])
-        args.gpu = args.rank % torch.cuda.device_count()
-    elif hasattr(args, "rank"):
-        pass
-    else:
-        print("Not using distributed mode")
-        args.distributed = False
-        return
+class MetricLogger:
+    def __init__(self, num_iteration, header = ""):
+        self.num_iteration = num_iteration
+        self.metric  = defaultdict()
+        self.header = header
 
-    args.distributed = True
+    def update(self, **kwargs):
+        for key, value in kwargs.items():
+            self.metric[key] = value
 
-    torch.cuda.set_device(args.gpu)
-    args.dist_backend = "nccl"
-    print(f"| distributed init (rank {args.rank}): {args.dist_url}", flush=True)
-    torch.distributed.init_process_group(
-        backend=args.dist_backend, init_method=args.dist_url, world_size=args.world_size, rank=args.rank
-    )
-    setup_for_distributed(args.rank == 0)
+    def log(self, iteration):
+        log_message = f"{self.header} [{iteration}/{self.num_iteration}]"
+        for key, value in self.metric.items():
+            log_message += f" {key} : {value:.3f}"
+
+        print(log_message)
+
+# https://stackoverflow.com/questions/53290306/confusion-matrix-and-test-accuracy-for-pytorch-transfer-learning-tutorial
+class ConfusionMatrix:
+    def __init__(self, num_classes=6):
+        self.confusion_matrix = torch.zeros(num_classes, num_classes)
+
+    def update(self, target, preds):
+        for t, p in zip(target.view(-1), preds.view(-1)):
+            self.confusion_matrix[t.long(), p.long()] += 1
+
+    def get_accuracy(self):
+        epsilon = 1e-7
+        correct = 100*self.confusion_matrix.diag().tolist()
+        whole = self.confusion_matrix.sum(1).clamp(min=epsilon).tolist()
+        class_accuracy = [100 * c / w for c, w in zip(correct, whole)]
+        return sum(class_accuracy)/len(class_accuracy), class_accuracy
+
+    def get_f1(self):
+        class_f1 = []
+        for i in range(len(self.confusion_matrix)):
+            tp = self.confusion_matrix[i][i].item()
+            fn = sum(self.confusion_matrix[i]).item() - tp
+            fp = sum([x[i] for x in self.confusion_matrix]).item() - tp
+
+            precision = tp / (tp+fp) if fp>0 else 0.0
+            recall = tp / (tp+fn) if fn>0 else 0.0
+            f1 = 2 / (1/precision + 1/recall) if precision>0 and recall >0 else 0.0
+            
+            class_f1.append(f1)
+
+        return sum(class_f1)/len(class_f1), class_f1
+    
+    def get(self):
+        return self.confusion_matrix
