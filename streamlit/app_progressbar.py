@@ -84,7 +84,7 @@ def handwash_app():
         st.session_state[button_change] = False
 
     # button change in session state decides whether initiating a prediction or not
-    # st.button is a dummy button just to pass down the button_change to if-else statement by rerunning a code
+    # st.button is a dummy button just to pass down button_change to if-else statement by rerunning a code
     if st.session_state[button_change]:
         st.button('Start Handwashing')
         st.session_state[button_change] = False
@@ -93,9 +93,9 @@ def handwash_app():
         st.button('Stop Handwashing')
         st.session_state[button_change] = True
     
-        if webrtc_ctx.state.playing:
-            labels_placeholder = st.empty()  # for debugging
-            write = st.empty()  # for debugging
+        if webrtc_ctx.state.playing:  # when vid is playing
+            labels_placeholder = st.empty()  # empty line for debugging
+            write = st.empty()  # empty line for debugging
             i = 0  # index for handwashing step
             percent_complete = 0  # percentage to show on progressbar
             while True:
