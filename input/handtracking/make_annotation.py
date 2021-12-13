@@ -214,6 +214,10 @@ def image(score_thresh, IMAGE_PATH, TXT_PATH):
             height = bottom - top
             #print(cx, cy, width, height)
             # Append in .txt file
+            """ 
+            FIXME
+            Not working properly
+            """
             f = open(txtpath, 'w+')
             label = str(f.readline()).split("\t")[0]
             f.write(f"{label}\t{cx}\t{cy}\t{width}\t{height}")

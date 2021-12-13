@@ -2,7 +2,7 @@ import os
 import cv2
 import pandas as pd
 
-PATH = "HandWashDataset/HandWashDataset"
+PATH = "/opt/ml/HandWashDataset/videos"
 IMAGE_PER_SEC = 4
 def readFrame(cap, frame):
 	cap.set(cv2.CAP_PROP_POS_FRAMES,frame)
@@ -21,11 +21,11 @@ for i in range(1,7):
 		stepList.extend([os.path.join(path,x) for x in os.listdir(path)])
 	fullName.append(stepList)
 
-os.makedirs("./kaggle_image")
+os.makedirs("./kaggle_image", exist_ok=True)
 for i, videoList in enumerate(fullName):
 	stepNum = i+1
 	path = f"./kaggle_image/step{stepNum}"
-	os.makedirs(path)
+	os.makedirs(path, exist_ok=True)
 
 	cnt = 0
 	csvName = "kaggle_train.csv"
@@ -48,4 +48,4 @@ for i, videoList in enumerate(fullName):
 			cnt+=1
 		pd.DataFrame(labelList,columns=["file_name","label","video_name"]).to_csv(csvName, mode="a",header=not os.path.isfile(csvName),index=False)
 		cap.release()
-
+	break
