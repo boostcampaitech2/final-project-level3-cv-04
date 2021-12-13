@@ -1,11 +1,12 @@
 import os
+from re import I
 import cv2
 import pandas as pd
 from tqdm import tqdm
 from multiprocessing import Pool
 import numpy as np
 # --- Custom Var ---
-SAVE_IMAGE_ROOT = "./image"
+SAVE_IMAGE_ROOT = "./hospital_image"
 RESIZE = (320,240)
 
 DATASET_CUSTOM_NAME = "dataset"
@@ -25,8 +26,8 @@ def initFile():
 			os.remove(csvName)
 	
 	os.makedirs(SAVE_IMAGE_ROOT,exist_ok=True)
-	for i in DATASET_NUM:
-		os.makedirs(os.path.join(SAVE_IMAGE_ROOT,DATASET_CUSTOM_NAME+str(i)),exist_ok=True)
+	#for i in DATASET_NUM:
+	#	os.makedirs(os.path.join(SAVE_IMAGE_ROOT,DATASET_CUSTOM_NAME+str(i)),exist_ok=True)
 
 
 def makeInput(datasetNum):
@@ -35,10 +36,10 @@ def makeInput(datasetNum):
 	videoFiles = os.listdir(videoRoot)
 	labelName = "train.csv"
 	cnt = 0
-	for idx, video in enumerate(tqdm(videoFiles,position=datasetNum-1,leave=True)):
+	for i, video in enumerate(tqdm(videoFiles,position=datasetNum-1,leave=True)):
 		labelList = []
 
-		if labelName=="train.csv" and idx > len(videoFiles) * 0.8:
+		if labelName=="train.csv" and i > len(videoFiles) * 0.8:
 			labelName = "valid.csv"
 
 		csv = ".".join(video.split(".")[:-1])+".csv"
@@ -49,7 +50,7 @@ def makeInput(datasetNum):
 
 		cap = cv2.VideoCapture(os.path.join(videoRoot,video))
 
-		for idx, line in enumerate(zip(*annotations)):
+		for j, line in enumerate(zip(*annotations)):
 			vertical = list(zip(*line))
 			if 0.0 in vertical[2] or 7.0 in vertical[2]: #0,7번 라벨 거름
 				continue
@@ -60,11 +61,11 @@ def makeInput(datasetNum):
 			lsSum = sum(ls)
 			ls = [x/lsSum for x in ls]
 
-			image = readFrame(cap, idx)
+			image = readFrame(cap, j)
 			if not isHand(image):
 				continue
 			image = cv2.resize(image,RESIZE)
-			fileName = f"{DATASET_CUSTOM_NAME+str(datasetNum)}/{cnt:07d}{IMAGE_FORMAT}"
+			fileName = f"{datasetNum}_{cnt:07d}{IMAGE_FORMAT}"
 
 			fullFileName = os.path.join(SAVE_IMAGE_ROOT,fileName)
 			if not os.path.isfile(fullFileName):
