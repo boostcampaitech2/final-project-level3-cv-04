@@ -1,10 +1,18 @@
+
+.vscode
+**/*.pyc
+
+# input
 input/*
 !input/make_input.py
 !input/download.sh
 !input/README.md
+!input/make_kaggle_input.py
+!input/make_full_input.py
 
-serving/videos
+# output
+**/wandb
+output/*
 
-.vscode
-
-**/*.pyc
+# model
+streamlit/models

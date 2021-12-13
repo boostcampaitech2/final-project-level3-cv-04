@@ -1,6 +1,7 @@
 import streamlit as st
 import av
 import queue
+import time
 
 from typing import List, NamedTuple
 from streamlit_webrtc import (
@@ -32,7 +33,6 @@ def handwash_app():
         step: int
         
     class model(VideoProcessorBase):
-        confidence_threshold: float
         result_queue: "queue.Queue[List[Prediction]]"
 
         def __init__(self) -> None:
@@ -41,6 +41,7 @@ def handwash_app():
                     self._net = pickle.load(f)
 
                 self.device = torch.device('cpu') 
+                ### Resize 꼭 넣어줘야하나
                 self.transform = A.Compose([
                     A.Resize(224,224),
                     A.Normalize(),
@@ -73,9 +74,30 @@ def handwash_app():
         async_processing=True,
     )
 
-    if st.checkbox("Show prediction", value=True):
-        if webrtc_ctx.state.playing:
-            labels_placeholder = st.empty()
+    # list of handwash step (1 to 7)
+    handwash_step = range(1,8)
+
+    # session state for changing a button
+    # when "start handwashing" is clicked, change to "stop handwashing" and vice versa
+    button_change = 'pred_button'
+    if button_change not in st.session_state:
+        st.session_state[button_change] = False
+
+    # button change in session state decides whether initiating a prediction or not
+    # st.button is a dummy button just to pass down button_change to if-else statement by rerunning a code
+    if st.session_state[button_change]:
+        st.button('Start Handwashing')
+        st.session_state[button_change] = False
+    else:
+        my_bar = st.progress(0)
+        st.button('Stop Handwashing')
+        st.session_state[button_change] = True
+    
+        if webrtc_ctx.state.playing:  # when vid is playing
+            labels_placeholder = st.empty()  # empty line for debugging
+            write = st.empty()  # empty line for debugging
+            i = 0  # index for handwashing step
+            percent_complete = 0  # percentage to show on progressbar
             while True:
                 if webrtc_ctx.video_processor:
                     try:
@@ -84,11 +106,21 @@ def handwash_app():
                         )
                     except queue.Empty:
                         result = None
-                    labels_placeholder.markdown(result)
+                    labels_placeholder.markdown(str(result) + " step: " + str(handwash_step[i]))  # print to debug
+                    if result == handwash_step[i]:  # when prediction equals to current step
+                        percent_complete += 1  # add percentage
+                        my_bar.progress(percent_complete)  # show percentage on progress bar
+                        time.sleep(0.1)  # to slow down the progress
+                    if percent_complete == 100:  # when the step is done
+                        i += 1  # go to the next step
+                        percent_complete=0  # initialize percentage
+                        my_bar.progress(percent_complete)  # initialize progressbar
+                    write.markdown("percent complete:" + str(percent_complete))  # print to debug
                 else:
                     break
-
-    st.markdown(
+    
+    footer = st.empty()
+    footer.markdown(
         "This hand wash recognition model from "
         "https://github.com/boostcampaitech2/final-project-level3-cv-04/ "
     )
