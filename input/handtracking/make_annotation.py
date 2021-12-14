@@ -26,12 +26,6 @@ def parse_args():
         default=1,
         help='Show FPS on detection/display visualization')
     parser.add_argument(
-        '-src',
-        '--source',
-        dest='video_source',
-        default=0,
-        help='Device index of the camera.')
-    parser.add_argument(
         '-wd',
         '--width',
         dest='width',
@@ -66,6 +60,10 @@ def parse_args():
         type=int,
         default=5,
         help='Size of the queue.')
+    parser.add_argument(
+        '--datadir',
+        type=str,
+        help='Dataset directory')
     args = parser.parse_args()
     return args
     
@@ -227,10 +225,7 @@ def image(score_thresh, IMAGE_PATH, TXT_PATH):
 
 if __name__ == '__main__':
     args = parse_args()
-    IMAGE_PATH = "/opt/ml/input/full_image/train"
-    TXT_PATH = "/opt/ml/input/full_label/train"
-    #IMAGE_PATH = "/opt/ml/example/image"
-    #TXT_PATH = "/opt/ml/example/label"
-    #print(os.listdir(IMAGE_PATH))
 
+    IMAGE_PATH = os.path.join(args.datadir, "images")
+    TXT_PATH = os.path.join(args.datadir, "labels")
     image(args.score_thresh, IMAGE_PATH, TXT_PATH)
