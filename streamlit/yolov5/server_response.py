@@ -1,3 +1,4 @@
+from typing import DefaultDict
 from flask import Flask, request
 import numpy as np
 import cv2
