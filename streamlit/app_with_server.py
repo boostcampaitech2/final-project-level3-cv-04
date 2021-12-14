@@ -22,7 +22,7 @@ def main():
   handwash_app()
 
 def handwash_app():  
-    COLORS = np.random.uniform(0, 255, size=(6, 3))
+    COLORS = np.random.uniform(0, 255, size=(1000, 3))
     class Prediction(NamedTuple):
         step: int
         prob: float

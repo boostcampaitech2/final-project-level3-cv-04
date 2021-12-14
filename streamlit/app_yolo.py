@@ -21,6 +21,10 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
 
+RTC_CONFIGURATION = RTCConfiguration(
+    {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
+)
+
 def main():
   st.header("무럭무럭감자밭 demo")
   st.subheader("Hand Wash Recognition")
@@ -65,13 +69,14 @@ def handwash_app():
                 # det = [[x,y,x,y],conf,cls] 
                 result: List[Prediction] = []
                 
-                # TODO step이 제대로 안 찍히는 것 같음 확인 필요
-                for det in pred:
-                    if len(det): 
-                        for c in det[:, -1].unique(): 
-                            n = (det[:, -1]==c).sum() # detections per class 
-                        for *xyxy, conf, cls in reversed(det): 
-                            # xyxy: bbox coordinate
+                if len(pred):
+                    detections = pred[0].detach().cpu().tolist()
+                    # 탐지된 게 있다면,
+                    if len(detections):
+                        target = detections
+                        if len(target) >= 2: # 2개 이상이면 정렬
+                            target.sort(reverse=True, key=lambda x : x[4])
+                            xyxy, conf, cls = target[0][:4], target[0][4], target[0][5] 
                             label = int(cls) + 1 
                             confidence = round(float(conf), 3) 
                             result.append(Prediction(step=label, prob=confidence))
