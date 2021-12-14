@@ -65,11 +65,13 @@ def handwash_app():
             
             self._net.eval()
             with torch.no_grad():
-                pred = self._net(data) #근데 여기 데이터 넣어주는 부분이 (1, 3, 640, 640) 이 맞나요 ?
+                pred = self._net(data)
                 pred = non_max_suppression(pred, conf_thres=0.25, iou_thres=0.45, classes=None, max_det=300)
                 # pred = list of detections, on (n,6) tensor per image [xyxy, conf, cls]
                 # det = [[x,y,x,y],conf,cls] 
                 result: List[Prediction] = []
+                
+                # TODO step이 제대로 안 찍히는 것 같음 확인 필요
                 for det in pred:
                     if len(det): 
                         for c in det[:, -1].unique(): 
@@ -77,7 +79,7 @@ def handwash_app():
                         for *xyxy, conf, cls in reversed(det): 
                             # xyxy: bbox coordinate
                             label = int(cls) + 1 
-                            confidence = round(float(conf), 3) # 맞는거 같네요 소수점 셋째짜리까지 표시
+                            confidence = round(float(conf), 3) 
                             result.append(Prediction(step=label, prob=confidence))
 
             self.result_queue.put(result)
