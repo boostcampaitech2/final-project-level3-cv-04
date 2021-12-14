@@ -26,12 +26,6 @@ def parse_args():
         default=1,
         help='Show FPS on detection/display visualization')
     parser.add_argument(
-        '-src',
-        '--source',
-        dest='video_source',
-        default=0,
-        help='Device index of the camera.')
-    parser.add_argument(
         '-wd',
         '--width',
         dest='width',
@@ -66,6 +60,10 @@ def parse_args():
         type=int,
         default=5,
         help='Size of the queue.')
+    parser.add_argument(
+        '--datadir',
+        type=str,
+        help='Dataset directory')
     args = parser.parse_args()
     return args
     
@@ -222,15 +220,29 @@ def image(score_thresh, IMAGE_PATH, TXT_PATH):
             label = str(f.readline()).split("\t")[0]
             f.write(f"{label}\t{cx}\t{cy}\t{width}\t{height}")
             f.close()
+    no_object.close()
 
+def delete_nohand(IMAGE_PATH, TXT_PATH):
+    f = open("no_object.txt", "r")
+    filelst = list(f.read().rstrip().split("\n"))
+    f.close()
+    # remove anntation.txt file
+    print("Remove .txt files without object")
+    for file in tqdm(filelst):
+        txtfile = file.replace("jpeg", "txt")
+        filepath = os.path.join(IMAGE_PATH, txtfile)
+        os.remove(filepath)
 
+    # remove image.jpeg file
+    print("Remove .jpeg files without object")
+    for file in tqdm(filelst):
+        filepath = os.path.join(TXT_PATH, file)
+        os.remove(filepath)
 
 if __name__ == '__main__':
     args = parse_args()
-    IMAGE_PATH = "/opt/ml/input/full_image/train"
-    TXT_PATH = "/opt/ml/input/full_label/train"
-    #IMAGE_PATH = "/opt/ml/example/image"
-    #TXT_PATH = "/opt/ml/example/label"
-    #print(os.listdir(IMAGE_PATH))
 
+    IMAGE_PATH = os.path.join(args.datadir, "images")
+    TXT_PATH = os.path.join(args.datadir, "labels")
     image(args.score_thresh, IMAGE_PATH, TXT_PATH)
+    delete_nohand(IMAGE_PATH, TXT_PATH)
