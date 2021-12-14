@@ -22,7 +22,7 @@ def main():
   handwash_app()
 
 def handwash_app():  
-
+    COLORS = np.random.uniform(0, 255, size=(6, 3))
     class Prediction(NamedTuple):
         step: int
         prob: float
@@ -40,10 +40,28 @@ def handwash_app():
             _, img_encoded = cv2.imencode('.jpg', image)
             file = {'image':img_encoded.tobytes()}
             res = requests.post("http://115.85.183.146:6013/", files=file) # 상원 Server
-            label, confidence = np.argmax(res.json()['label']), np.argmax(res.json()['confidence'])
+            label, confidence = res.json()['label'], res.json()['confidence']
             result.append(Prediction(step=label, prob=confidence))
-            
             self.result_queue.put(result)
+        
+            # bbox 그리기
+            box = res.json()['bbox'] 
+            if box:
+                box = np.array(box)
+                (startX, startY, endX, endY) = box.astype("int")
+                # display the prediction
+                bbox_info = f"{label}: {round(confidence * 100, 2)}%"
+                cv2.rectangle(image, (startX, startY), (endX, endY), COLORS[label], 2)
+                y = startY - 15 if startY - 15 > 15 else startY + 15
+                cv2.putText(
+                    image,
+                    bbox_info,
+                    (startX, y),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5,
+                    COLORS[label],
+                    2,
+                )
 
             return av.VideoFrame.from_ndarray(image, format="bgr24")
 
