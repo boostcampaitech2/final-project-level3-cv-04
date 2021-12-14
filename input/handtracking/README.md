@@ -37,19 +37,30 @@ Hand Tracking Original Repo is [here](https://github.com/victordibia/handtrackin
 |       
 └──yolov5
 ```
+### Pre-Requisites
+You should run one of 
+- `../make_full_input.py`
+- `../make_input.py`
+- `../make_kaggle_input.py`
 
+before making hand annotation.
 
 ### 1. Install Requirements
 ```
 pip install -r requirements.txt
 ```
+
 ### 2. Organize Directories
 - `datasets` directory should be next to `/yolov5` directory. 
 - Make two empty directory
   - `datasets/YOUR_DATASET_NAME/images/`
   - `datasets/YOUR_DATASET_NAME/labels/`
-- Put your images in `datasets/YOUR_DATASET_NAME/images/` directory
-### 3. Run 
+
+### 3. Run `make_yolo_txt.ipynb`
+Before running `make_yolo_txt.ipynb`, 
+please refer to expected output directory structure and **change custom var**. 
+
+### 4. Run 
 ```
 python make_annotation.py --datadir /datasets/YOUR_DATASET_NAME
 ```
