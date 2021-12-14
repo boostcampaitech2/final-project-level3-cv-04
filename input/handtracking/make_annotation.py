@@ -220,8 +220,24 @@ def image(score_thresh, IMAGE_PATH, TXT_PATH):
             label = str(f.readline()).split("\t")[0]
             f.write(f"{label}\t{cx}\t{cy}\t{width}\t{height}")
             f.close()
+    no_object.close()
 
+def delete_nohand():
+    f = open("no_object.txt", "r")
+    filelst = list(f.read().rstrip().split("\n"))
+    f.close()
+    # remove anntation.txt file
+    print("Remove .txt files without object")
+    for file in tqdm(filelst):
+        txtfile = file.replace("jpeg", "txt")
+        filepath = os.path.join("/opt/ml/datasets/handwash/labels/train", txtfile)
+        os.remove(filepath)
 
+    # remove image.jpeg file
+    print("Remove .jpeg files without object")
+    for file in tqdm(filelst):
+        filepath = os.path.join("/opt/ml/datasets/handwash/images/train", file)
+        os.remove(filepath)
 
 if __name__ == '__main__':
     args = parse_args()
