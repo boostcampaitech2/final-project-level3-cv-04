@@ -227,7 +227,6 @@ class LoadImages:
         # ADD CLAHE AUGMENT BEFORE INFERENCE
         import albumentations as A
         transform = A.Compose([
-            A.VerticalFlip(p=1), 
             A.CLAHE(p=1)
         ])
         img = transform(image=img)['image']
