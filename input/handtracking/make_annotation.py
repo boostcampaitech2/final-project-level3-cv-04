@@ -222,7 +222,7 @@ def image(score_thresh, IMAGE_PATH, TXT_PATH):
             f.close()
     no_object.close()
 
-def delete_nohand():
+def delete_nohand(IMAGE_PATH, TXT_PATH):
     f = open("no_object.txt", "r")
     filelst = list(f.read().rstrip().split("\n"))
     f.close()
@@ -230,13 +230,13 @@ def delete_nohand():
     print("Remove .txt files without object")
     for file in tqdm(filelst):
         txtfile = file.replace("jpeg", "txt")
-        filepath = os.path.join("/opt/ml/datasets/handwash/labels/train", txtfile)
+        filepath = os.path.join(IMAGE_PATH, txtfile)
         os.remove(filepath)
 
     # remove image.jpeg file
     print("Remove .jpeg files without object")
     for file in tqdm(filelst):
-        filepath = os.path.join("/opt/ml/datasets/handwash/images/train", file)
+        filepath = os.path.join(TXT_PATH, file)
         os.remove(filepath)
 
 if __name__ == '__main__':
@@ -245,3 +245,4 @@ if __name__ == '__main__':
     IMAGE_PATH = os.path.join(args.datadir, "images")
     TXT_PATH = os.path.join(args.datadir, "labels")
     image(args.score_thresh, IMAGE_PATH, TXT_PATH)
+    delete_nohand(IMAGE_PATH, TXT_PATH)
