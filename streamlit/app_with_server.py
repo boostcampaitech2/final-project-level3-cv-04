@@ -1,21 +1,16 @@
 import streamlit as st
+import requests
 import av
 import queue
 import cv2
 import numpy as np
-from typing import List
+from typing import List, NamedTuple
 from streamlit_webrtc import (
     VideoProcessorBase,
     RTCConfiguration,
     WebRtcMode,
     webrtc_streamer,
 )
-
-#모델 불러오기
-import pickle
-import torch
-import albumentations as A
-from albumentations.pytorch import ToTensorV2
 
 RTC_CONFIGURATION = RTCConfiguration(
     {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
@@ -26,42 +21,29 @@ def main():
   st.subheader("Hand Wash Recognition")
   handwash_app()
 
-def handwash_app():
-    MODEL_LOCAL_PATH = "./models/outModel.pickle"
-    
-    class Prediction(List):
-        step: float
+def handwash_app():  
+
+    class Prediction(NamedTuple):
+        step: int
+        prob: float
         
     class model(VideoProcessorBase):
-        confidence_threshold: float
         result_queue: "queue.Queue[List[Prediction]]"
 
         def __init__(self) -> None:
-            try:
-                with open(MODEL_LOCAL_PATH,"rb") as f:
-                    self._net = pickle.load(f)
-
-                self.device = torch.device('cpu') 
-                self.transform = A.Compose([
-                    A.Resize(512,512),
-                    A.Normalize(),
-                    ToTensorV2()])
-
-            except:
-                print("model load fail")
-                
             self.result_queue = queue.Queue()
 
         def recv(self, frame: av.VideoFrame) -> av.VideoFrame: 
-            import requests
+            result: List[Prediction] = []
             image = frame.to_ndarray(format="bgr24")
             
             _, img_encoded = cv2.imencode('.jpg', image)
             file = {'image':img_encoded.tobytes()}
-            res = requests.post("http://49.50.160.10:6012/", files=file)
-            predict = np.argmax(res.json()['data'])
+            res = requests.post("http://115.85.183.146:6013/", files=file) # 상원 Server
+            label, confidence = np.argmax(res.json()['label']), np.argmax(res.json()['confidence'])
+            result.append(Prediction(step=label, prob=confidence))
             
-            self.result_queue.put(predict)
+            self.result_queue.put(result)
 
             return av.VideoFrame.from_ndarray(image, format="bgr24")
 

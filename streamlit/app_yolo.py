@@ -1,8 +1,9 @@
-import streamlit as st
+import sys
 import av
 import queue
 import time
 import torch
+import streamlit as st
 
 from typing import List, NamedTuple
 from streamlit_webrtc import (
@@ -14,18 +15,11 @@ from streamlit_webrtc import (
 
 #모델 불러오기
 from models.common import DetectMultiBackend
-from utils.datasets import IMG_FORMATS, VID_FORMATS, LoadImages, LoadStreams
-from utils.general import (LOGGER, check_file, check_img_size, check_imshow, check_requirements, colorstr,
-                           increment_path, non_max_suppression, print_args, scale_coords, strip_optimizer, xyxy2xywh)
-from utils.plots import Annotator, colors, save_one_box
-from utils.torch_utils import select_device, time_sync
+from utils.general import non_max_suppression
 
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
-RTC_CONFIGURATION = RTCConfiguration(
-    {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
-)
 
 def main():
   st.header("무럭무럭감자밭 demo")
