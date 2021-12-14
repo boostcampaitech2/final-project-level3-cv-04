@@ -35,6 +35,8 @@ data/images/*
 !data/images/zidane.jpg
 !data/images/bus.jpg
 !data/*.sh
+!utils/*
+
 
 results*.csv
 
@@ -88,7 +90,8 @@ sdist/
 var/
 wheels/
 *.egg-info/
-/wandb/
+wandb/
+!utils/loggers/wandb
 .installed.cfg
 *.egg
 
