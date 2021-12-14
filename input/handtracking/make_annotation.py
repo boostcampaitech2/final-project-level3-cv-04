@@ -198,8 +198,6 @@ def image(score_thresh, IMAGE_PATH, TXT_PATH):
 
         if len(hand_coordinates)==0:
             # no hand detected -> Delete file
-            f = open(txtpath, 'r')
-            label = str(f.readline().rstrip())
             no_object.write(f"{filename}\n")
             pass
         else:
