@@ -7,12 +7,6 @@ input/*
 !input/make_full_yolo_input.ipynb
 !input/handtracking
 
-input/handtracking/*
-!input/handtracking/utils
-!input/handtracking/README.md
-!input/handtracking/requirements.txt
-!input/handtracking/LICENSE
-!input/handtracking/make_annotation.py
 
 .vscode
 
