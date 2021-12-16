@@ -106,6 +106,7 @@ def handwash_app():
             write = st.empty()  # empty line for debugging
             i = 0  # index for handwashing step
             percent_complete = 0  # percentage to show on progressbar
+            webrtc_ctx.video_processor.result_queue.queue.clear()
             while True:
                 if webrtc_ctx.video_processor:
                     try:
@@ -121,8 +122,8 @@ def handwash_app():
 
                     if len(st.session_state[collect_result]) >= COLLECT_FRAME:
                         classes = [i[0].step for i in st.session_state[collect_result]]
-                        final_result = max(classes, key=classes.count) # 몰라요 해봐요 ㅋㅋㅋㅋ -----------> 여기 key 줄 때 count만 줘야하지 않나여 아님 상관 없어요?
-                        st.session_state[collect_result] = [] # 이거 초기화 아닌가요 ?
+                        final_result = max(classes, key=classes.count) 
+                        st.session_state[collect_result] = [] 
                         if final_result == handwash_step[i]:  # when prediction equals to current step
                             percent_complete += 5  # add percentage
                             my_bar.progress(percent_complete)  # show percentage on progress bar
@@ -133,14 +134,7 @@ def handwash_app():
                         percent_complete=0  # initialize percentage
                         my_bar.progress(percent_complete)  # initialize progressbar
                     write.markdown("percent complete:" + str(percent_complete))  # print to debug
-                    """
-                    if handwash_step[i] == handwash_step[-1]:
-                        st.button('Start Handwashing')
-                        st.session_state[button_change] = False
-                        st.session_state[collect_result] = []
-                        write.markdown("너 손 다씻음 ㅇㅇ")
-                        break 
-                    """
+                 
                 else:
                     break
     
