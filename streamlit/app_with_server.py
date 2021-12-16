@@ -16,6 +16,8 @@ from streamlit_webrtc import (
 RTC_CONFIGURATION = RTCConfiguration(
     {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
 )
+COLLECT_FRAME = 10
+
 
 def main():
   st.header("무럭무럭감자밭 demo")
@@ -27,7 +29,6 @@ def handwash_app():
     class Prediction(NamedTuple):
         step: int
         prob: float
-        
     class model(VideoProcessorBase):
         result_queue: "queue.Queue[List[Prediction]]"
 
@@ -45,7 +46,7 @@ def handwash_app():
             if label is not None:
                 label = int(label) + 1
             result.append(Prediction(step=label, prob=confidence))
-        
+            
             # bbox 그리기
             box = res.json()['bbox'] 
             if box:
@@ -64,6 +65,7 @@ def handwash_app():
                     COLORS[label],
                     2,
                 )
+            
             self.result_queue.put(result)
 
             return av.VideoFrame.from_ndarray(image, format="bgr24")
@@ -79,6 +81,9 @@ def handwash_app():
 
     # list of handwash step (1 to 6)
     handwash_step = range(1,7)
+    collect_result = 'collect_result'
+    if collect_result not in st.session_state:
+        st.session_state[collect_result] = []
 
     # session state for changing a button
     # when "start handwashing" is clicked, change to "stop handwashing" and vice versa
@@ -104,22 +109,38 @@ def handwash_app():
             while True:
                 if webrtc_ctx.video_processor:
                     try:
-                        result = webrtc_ctx.video_processor.result_queue.get(
-                            timeout=1.0
-                        )
+                        st.session_state[collect_result].append(webrtc_ctx.video_processor.result_queue.get(
+                            timeout=0.05
+                        ))
+                        result = st.session_state[collect_result][-1]
+
                     except queue.Empty:
                         result = None
-                    print(type(result[0]))
-                    labels_placeholder.markdown(str(result[0]) + " step: " + str(handwash_step[i]))  # print to debug
-                    if result[0].step == handwash_step[i]:  # when prediction equals to current step
-                        percent_complete += 1  # add percentage
-                        my_bar.progress(percent_complete)  # show percentage on progress bar
-                        time.sleep(0.1)  # to slow down the progress
+                    
+                    labels_placeholder.markdown(str(result) + " step: " + str(handwash_step[i]))  # print to debug
+
+                    if len(st.session_state[collect_result]) >= COLLECT_FRAME:
+                        classes = [i[0].step for i in st.session_state[collect_result]]
+                        final_result = max(classes, key=classes.count) # 몰라요 해봐요 ㅋㅋㅋㅋ -----------> 여기 key 줄 때 count만 줘야하지 않나여 아님 상관 없어요?
+                        st.session_state[collect_result] = [] # 이거 초기화 아닌가요 ?
+                        if final_result == handwash_step[i]:  # when prediction equals to current step
+                            percent_complete += 5  # add percentage
+                            my_bar.progress(percent_complete)  # show percentage on progress bar
+                            time.sleep(0.1)  # to slow down the progress
+                            
                     if percent_complete == 100:  # when the step is done
                         i += 1  # go to the next step
                         percent_complete=0  # initialize percentage
                         my_bar.progress(percent_complete)  # initialize progressbar
                     write.markdown("percent complete:" + str(percent_complete))  # print to debug
+                    """
+                    if handwash_step[i] == handwash_step[-1]:
+                        st.button('Start Handwashing')
+                        st.session_state[button_change] = False
+                        st.session_state[collect_result] = []
+                        write.markdown("너 손 다씻음 ㅇㅇ")
+                        break 
+                    """
                 else:
                     break
     
