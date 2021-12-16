@@ -4,58 +4,52 @@ import numpy as np
 import cv2
 import torch
 from models.common import DetectMultiBackend
-from utils.general import non_max_suppression
-import albumentations as A
-from albumentations.pytorch import ToTensorV2
+from utils.general import non_max_suppression, scale_coords
+from utils.augmentations import letterbox
 
 app = Flask(__name__)
 
-# MODEL_WEIGHT = "/opt/ml/yolo_server/final-project-level3-cv-04/streamlit/yolov5/streamlit/models/yolobest.pt"
-MODEL_WEIGHT = "/opt/ml/yolo_server/final-project-level3-cv-04/streamlit/yolov5/streamlit/models/focal_adam.pt"
-# MODEL_WEIGHT = "yolov5m.pt"
+MODEL_WEIGHT = "./saved/final_dataset_base.pt"
 
 # 모델 불러오기
 device = torch.device('cuda') 
 model = DetectMultiBackend(MODEL_WEIGHT, device=device, dnn=False)
-transform = A.Compose([
-            A.Resize(640,640),
-            A.Normalize(),
-            ToTensorV2()])
 model.eval()
 
 @app.route('/',methods=['POST'], strict_slashes=False)
 def hello():
-   nparr = np.fromstring(request.files['image'].read(), np.uint8)
+   nparr = np.frombuffer(request.files['image'].read(), np.uint8)
    image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-   image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-   tensor = transform(image=image)["image"]
-   tensor = tensor.unsqueeze(0) # 배치 1 추가
-   tensor = tensor.to(torch.device('cuda'))
+   img = letterbox(image, 640, stride=model.stride, auto=True)[0]
+   img = img.transpose((2, 0, 1))[::-1]  # HWC to CHW, BGR to RGB
+   img = np.ascontiguousarray(img)
+   img = torch.from_numpy(img).to(device)
+   img = img.float()
+   img /= 255
+   if len(img.shape) == 3:
+               img = img[None]
 
    with torch.no_grad():
-      pred = model(tensor)
-      # pred = non_max_suppression(pred, conf_thres=0.25, iou_thres=0.45, classes=None, max_det=300)
-      pred = non_max_suppression(pred, conf_thres=0.01, iou_thres=0.45, classes=None, max_det=300)
+      pred = model(img)
+      pred = non_max_suppression(pred, conf_thres=0.25, iou_thres=0.45, classes=None, max_det=2000)
       # pred = list of detections, on (n,6) tensor per image [xyxy, conf, cls] 
       # detection = [[x,y,x,y], conf, cls] 
-
-      # 탐지 안됬을 때,
       label = None
       confidence = None
       xyxy = None
+      
+      for i, det in enumerate(pred):
+         if len(det):
+               det[:, :4] = scale_coords(img.shape[2:], det[:, :4], image.shape).round()
+               det = det.detach().cpu().tolist()
+               for *xyxy, conf, cls in reversed(det):
+                  confidence = round(float(conf), 3)
+                  label = int(cls)
+                  xyxy = xyxy
+                  return {"label" : label, 'confidence' : confidence, 'bbox' : xyxy}, 200
 
-      if len(pred):
-         detections = pred[0].detach().cpu().tolist()
-         # 탐지된 게 있다면,
-         if len(detections):
-            target = detections
-            if len(target) >= 2: # 2개 이상이면 정렬
-               target.sort(reverse=True, key=lambda x : x[4])
-            xyxy, conf, cls = target[0][:4], target[0][4], target[0][5] 
-            label = int(cls)
-            confidence = round(float(conf), 3) 
+         else:
+            return {"label" : label, 'confidence' : confidence, 'bbox' : xyxy}, 200
 
-   return {"label" : label, 'confidence' : confidence, 'bbox' : xyxy}, 200
-   
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=6006)
