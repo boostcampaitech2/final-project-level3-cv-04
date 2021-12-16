@@ -223,13 +223,6 @@ class LoadImages:
         img = letterbox(img0, self.img_size, stride=self.stride, auto=self.auto)[0]
 
 
-        # SEYOUNG
-        # ADD CLAHE AUGMENT BEFORE INFERENCE
-        import albumentations as A
-        transform = A.Compose([
-            A.CLAHE(p=1)
-        ])
-        img = transform(image=img)['image']
         # Convert
         img = img.transpose((2, 0, 1))[::-1]  # HWC to CHW, BGR to RGB
         img = np.ascontiguousarray(img)
