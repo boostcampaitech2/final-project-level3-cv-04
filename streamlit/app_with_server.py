@@ -42,6 +42,8 @@ def handwash_app():
             file = {'image':img_encoded.tobytes()}
             res = requests.post("http://49.50.165.66:6012/", files=file) # 상원 Server
             label, confidence = res.json()['label'], res.json()['confidence']
+            if label is not None:
+                label = int(label) + 1
             result.append(Prediction(step=label, prob=confidence))
         
             # bbox 그리기
@@ -62,6 +64,7 @@ def handwash_app():
                     COLORS[label],
                     2,
                 )
+            self.result_queue.put(result)
 
             return av.VideoFrame.from_ndarray(image, format="bgr24")
 
@@ -74,8 +77,8 @@ def handwash_app():
         async_processing=True,
     )
 
-    # list of handwash step (1 to 7)
-    handwash_step = range(1,8)
+    # list of handwash step (1 to 6)
+    handwash_step = range(1,7)
 
     # session state for changing a button
     # when "start handwashing" is clicked, change to "stop handwashing" and vice versa
@@ -106,8 +109,9 @@ def handwash_app():
                         )
                     except queue.Empty:
                         result = None
-                    labels_placeholder.markdown(str(result) + " step: " + str(handwash_step[i]))  # print to debug
-                    if result == handwash_step[i]:  # when prediction equals to current step
+                    print(type(result[0]))
+                    labels_placeholder.markdown(str(result[0]) + " step: " + str(handwash_step[i]))  # print to debug
+                    if result[0].step == handwash_step[i]:  # when prediction equals to current step
                         percent_complete += 1  # add percentage
                         my_bar.progress(percent_complete)  # show percentage on progress bar
                         time.sleep(0.1)  # to slow down the progress
