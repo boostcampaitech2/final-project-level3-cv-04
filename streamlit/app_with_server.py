@@ -13,11 +13,14 @@ from streamlit_webrtc import (
     webrtc_streamer,
 )
 
-RTC_CONFIGURATION = RTCConfiguration(
-    {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
-)
 COLLECT_FRAME = 10
 
+image_list = ['pic/1.png', 'pic/2.png', 'pic/3.png', 'pic/4.png', 'pic/5.png', 'pic/6.png']
+step_images = []
+for i in image_list:
+    image = cv2.imread(i)
+    image = cv2.resize(image, dsize=(110, 80), interpolation=cv2.INTER_CUBIC)
+    step_images.append(image)
 
 def main():
   st.header("무럭무럭감자밭 demo")
@@ -73,7 +76,6 @@ def handwash_app():
     webrtc_ctx = webrtc_streamer(
         key="handwash_recognition", # context = st.session_state[key] 
         mode=WebRtcMode.SENDRECV, 
-        rtc_configuration=RTC_CONFIGURATION,
         video_processor_factory=model,
         media_stream_constraints={"video": True, "audio": False}, 
         async_processing=True,
@@ -81,6 +83,8 @@ def handwash_app():
 
     # list of handwash step (1 to 6)
     handwash_step = range(1,7)
+    change_image = True
+    
     collect_result = 'collect_result'
     if collect_result not in st.session_state:
         st.session_state[collect_result] = []
@@ -125,19 +129,46 @@ def handwash_app():
                         final_result = max(classes, key=classes.count) 
                         st.session_state[collect_result] = [] 
                         if final_result == handwash_step[i]:  # when prediction equals to current step
-                            percent_complete += 5  # add percentage
+                            percent_complete += 10  # add percentage
                             my_bar.progress(percent_complete)  # show percentage on progress bar
                             time.sleep(0.1)  # to slow down the progress
                             
                     if percent_complete == 100:  # when the step is done
                         i += 1  # go to the next step
+                        change_image = True
+                        current_step_image.empty() # clear image
                         percent_complete=0  # initialize percentage
                         my_bar.progress(percent_complete)  # initialize progressbar
                     write.markdown("percent complete:" + str(percent_complete))  # print to debug
-                 
+
+                    if change_image:
+                        change_image = False
+                        concat_img = []
+                        for idx, img in enumerate(step_images):
+                            values = [0, 0, 0]
+                            if i == idx:
+                                values = [0, 0, 255]
+                            
+                            img = cv2.copyMakeBorder(
+                                img,
+                                top=3,
+                                bottom=3,
+                                left=3,
+                                right=3,
+                                borderType=cv2.BORDER_CONSTANT,
+                                value=values
+                            )
+
+                            if idx == 0:
+                                concat_img = img
+                            else:
+                                concat_img = cv2.hconcat([concat_img, img])
+                        concat_img = cv2.cvtColor(concat_img, cv2.COLOR_BGR2RGB)
+                        current_step_image = st.image(concat_img, use_column_width=True, clamp = True)
+
                 else:
                     break
-    
+
     footer = st.empty()
     footer.markdown(
         "This hand wash recognition model from "
