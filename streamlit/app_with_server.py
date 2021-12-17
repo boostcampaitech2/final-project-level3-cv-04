@@ -6,165 +6,113 @@ import cv2
 import time
 import numpy as np
 from typing import List, NamedTuple
-from streamlit_webrtc import (
-    VideoProcessorBase,
-    RTCConfiguration,
-    WebRtcMode,
-    webrtc_streamer,
-)
+from streamlit.type_util import convert_anything_to_df
+from streamlit_webrtc import (VideoProcessorBase, WebRtcMode, webrtc_streamer)
 
-COLLECT_FRAME = 10
-
-image_list = ['pic/1.png', 'pic/2.png', 'pic/3.png', 'pic/4.png', 'pic/5.png', 'pic/6.png']
-step_images = []
-for i in image_list:
-    image = cv2.imread(i)
-    image = cv2.resize(image, dsize=(110, 80), interpolation=cv2.INTER_CUBIC)
-    step_images.append(image)
-
-def main():
-  st.header("무럭무럭감자밭 demo")
-  st.subheader("Hand Wash Recognition")
-  handwash_app()
-
-def handwash_app():  
-    COLORS = np.random.uniform(0, 255, size=(1000, 3))
-    class Prediction(NamedTuple):
+def handwash_app():
+    class Detection(NamedTuple):
+        '''
+        Object Detection Model Prediction 
+        '''
         step: int
         prob: float
-    class model(VideoProcessorBase):
-        result_queue: "queue.Queue[List[Prediction]]"
+    class Video(VideoProcessorBase):
+        '''
+        Video process
+        '''
+        result_queue: "queue.Queue[List[Detection]]"
 
         def __init__(self) -> None:
             self.result_queue = queue.Queue()
 
         def recv(self, frame: av.VideoFrame) -> av.VideoFrame: 
-            result: List[Prediction] = []
+            result: List[Detection] = []
             image = frame.to_ndarray(format="bgr24")
-            
-            _, img_encoded = cv2.imencode('.jpg', image)
-            file = {'image':img_encoded.tobytes()}
-            res = requests.post("http://49.50.165.66:6012/", files=file) # 상원 Server
-            label, confidence = res.json()['label'], res.json()['confidence']
+            file = encode_image(image)
+
+            response = requests.post("http://49.50.165.66:6012/", files=file) 
+            label, confidence, bbox = response.json()['label'], response.json()['confidence'], response.json()['bbox'] 
             if label is not None:
                 label = int(label) + 1
-            result.append(Prediction(step=label, prob=confidence))
-            
-            # bbox 그리기
-            box = res.json()['bbox'] 
-            if box:
-                box = np.array(box)
-                (startX, startY, endX, endY) = box.astype("int")
-                # display the prediction
-                bbox_info = f"{label}: {round(confidence * 100, 2)}%"
-                cv2.rectangle(image, (startX, startY), (endX, endY), COLORS[label], 2)
-                y = startY - 15 if startY - 15 > 15 else startY + 15
-                cv2.putText(
-                    image,
-                    bbox_info,
-                    (startX, y),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.5,
-                    COLORS[label],
-                    2,
-                )
-            
+
+            if bbox:
+                image = annotate_bbox(image, label, confidence, bbox) 
+
+            result.append(Detection(step=label, prob=confidence))
             self.result_queue.put(result)
 
             return av.VideoFrame.from_ndarray(image, format="bgr24")
 
+    # Init variance
+    init_var()
+    
     webrtc_ctx = webrtc_streamer(
-        key="handwash_recognition", # context = st.session_state[key] 
+        key="object_detection",
         mode=WebRtcMode.SENDRECV, 
-        video_processor_factory=model,
+        video_processor_factory=Video,
         media_stream_constraints={"video": True, "audio": False}, 
         async_processing=True,
     )
 
-    # list of handwash step (1 to 6)
-    handwash_step = range(1,7)
-    change_image = True
-    
-    collect_result = 'collect_result'
-    if collect_result not in st.session_state:
-        st.session_state[collect_result] = []
+    Button_change = 'pred_button'
+    if Button_change not in st.session_state:
+        st.session_state[Button_change] = False
 
-    # session state for changing a button
-    # when "start handwashing" is clicked, change to "stop handwashing" and vice versa
-    button_change = 'pred_button'
-    if button_change not in st.session_state:
-        st.session_state[button_change] = False
-
-    # button change in session state decides whether initiating a prediction or not
-    # st.button is a dummy button just to pass down button_change to if-else statement by rerunning a code
-    if st.session_state[button_change]:
+    if st.session_state[Button_change]:
         st.button('Start Handwashing')
-        st.session_state[button_change] = False
+        st.session_state[Button_change] = False
+        
     else:
-        my_bar = st.progress(0)
         st.button('Stop Handwashing')
-        st.session_state[button_change] = True
+        st.session_state[Button_change] = True
+        st.session_state['change_image'] = True
     
         if webrtc_ctx.state.playing:  # when vid is playing
-            labels_placeholder = st.empty()  # empty line for debugging
-            write = st.empty()  # empty line for debugging
-            i = 0  # index for handwashing step
+            current_step = 1  # index for handwashing step
             percent_complete = 0  # percentage to show on progressbar
+            my_bar = st.progress(0)
             webrtc_ctx.video_processor.result_queue.queue.clear()
+            current_step_descript = st.empty()
             while True:
                 if webrtc_ctx.video_processor:
                     try:
-                        st.session_state[collect_result].append(webrtc_ctx.video_processor.result_queue.get(
+                        st.session_state['collect_result'].append(webrtc_ctx.video_processor.result_queue.get(
                             timeout=0.05
                         ))
-                        result = st.session_state[collect_result][-1]
 
                     except queue.Empty:
-                        result = None
+                        pass 
                     
-                    labels_placeholder.markdown(str(result) + " step: " + str(handwash_step[i]))  # print to debug
-
-                    if len(st.session_state[collect_result]) >= COLLECT_FRAME:
-                        classes = [i[0].step for i in st.session_state[collect_result]]
+                    if len(st.session_state['collect_result']) >= st.session_state['collect_frame']:
+                        classes = [i[0].step for i in st.session_state['collect_result']]
                         final_result = max(classes, key=classes.count) 
-                        st.session_state[collect_result] = [] 
-                        if final_result == handwash_step[i]:  # when prediction equals to current step
+                        st.session_state['collect_result'] = [] 
+
+                        if final_result == current_step:  # when prediction equals to current step
                             percent_complete += 10  # add percentage
                             my_bar.progress(percent_complete)  # show percentage on progress bar
                             time.sleep(0.1)  # to slow down the progress
-                            
+
+                    if st.session_state['change_image']:
+                        st.session_state['change_image'] = False 
+                        concat_img = step_image(current_step)
+                              
+                        with current_step_descript.container():
+                            st.image(concat_img, use_column_width=True, clamp = True)  
+                            st.write(step_description(current_step))
+                                    
                     if percent_complete == 100:  # when the step is done
-                        i += 1  # go to the next step
-                        change_image = True
-                        current_step_image.empty() # clear image
+                        current_step += 1  # go to the next step
+                        st.session_state['change_image'] = True
                         percent_complete=0  # initialize percentage
+                        current_step_descript.empty() # clear descript
                         my_bar.progress(percent_complete)  # initialize progressbar
-                    write.markdown("percent complete:" + str(percent_complete))  # print to debug
 
-                    if change_image:
-                        change_image = False
-                        concat_img = []
-                        for idx, img in enumerate(step_images):
-                            values = [0, 0, 0]
-                            if i == idx:
-                                values = [0, 0, 255]
-                            
-                            img = cv2.copyMakeBorder(
-                                img,
-                                top=3,
-                                bottom=3,
-                                left=3,
-                                right=3,
-                                borderType=cv2.BORDER_CONSTANT,
-                                value=values
-                            )
-
-                            if idx == 0:
-                                concat_img = img
-                            else:
-                                concat_img = cv2.hconcat([concat_img, img])
-                        concat_img = cv2.cvtColor(concat_img, cv2.COLOR_BGR2RGB)
-                        current_step_image = st.image(concat_img, use_column_width=True, clamp = True)
+                    if current_step == 7:
+                        init_var()
+                        st.session_state[Button_change] = True
+                        st.markdown("Complete hand wash")
+                        break 
 
                 else:
                     break
@@ -174,6 +122,98 @@ def handwash_app():
         "This hand wash recognition model from "
         "https://github.com/boostcampaitech2/final-project-level3-cv-04/ "
     )
+
+def encode_image(image):
+    '''
+    Encoding image to bytes
+    '''  
+    _, img_encoded = cv2.imencode('.jpg', image)
+
+    return {'image':img_encoded.tobytes()}
+
+def step_image(current_step):
+    '''
+    Draw Step Image
+    '''
+    concat_img = []
+    for idx, img in enumerate(st.session_state['step_images']):
+        values = [0, 0, 0]
+        if current_step - 1 == idx: # Current Step
+            values = [0, 0, 255] # Make Red Border
+        img = cv2.copyMakeBorder(
+            img,
+            top=3, bottom=3, left=3, right=3,
+            borderType=cv2.BORDER_CONSTANT,
+            value=values
+        )
+        if idx == 0:
+            concat_img = img
+        else:
+            concat_img = cv2.hconcat([concat_img, img])
+        
+    return cv2.cvtColor(concat_img, cv2.COLOR_BGR2RGB)
+
+def step_description(current_step):
+    '''
+    Step description
+    '''
+    description_dict = {
+        1:'Step 1. Palm to palm',
+        2:'Step 2. Right palm over left dorsum, left palm over right dorsum', 
+        3:'Step 3. Plam to palm, fingers interlaced', 
+        4:'Step 4. Backs of fingers to opposing palms with fingers interlaced', 
+        5:'Step 5. Rotational rubbing of right thumb clasped over left palm & left thumb over right palm', 
+        6:'Step 6. Rotational rubbing backwards  and fowards with clasped fingers of right hand in palm of left hand and vice-versa.'
+        }
+    
+    return description_dict[current_step]
+
+def init_var():
+    '''
+    Initialize variance
+    '''
+    if "init_var" not in st.session_state:
+        st.session_state["init_var"] = True
+        
+        # 손 씻기 단계 이미지
+        image_list = ['pic/1.png', 'pic/2.png', 'pic/3.png', 'pic/4.png', 'pic/5.png', 'pic/6.png']
+        st.session_state["step_images"] = []
+        for i in image_list:
+            image = cv2.imread(i)
+            image = cv2.resize(image, dsize=(110, 80), interpolation=cv2.INTER_CUBIC)
+            st.session_state["step_images"].append(image)
+        
+        st.session_state['collect_frame'] = 5
+        st.session_state['collect_result'] = []
+        st.session_state['change_image'] = True
+
+def annotate_bbox(image, label, confidence, bbox):
+    '''
+    Add bbox to image
+    '''
+    bbox = np.array(bbox)
+    (startX, startY, endX, endY) = bbox.astype("int")
+    # display the prediction
+    bbox_info = f"{label}: {round(confidence * 100, 2)}%"
+    cv2.rectangle(image, (startX, startY), (endX, endY), color(label), 2)
+    y = startY - 15 if startY - 15 > 15 else startY + 15
+    cv2.putText(image, bbox_info, (startX, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color(label), 2,)
+
+    return image
+
+def color(label):
+    '''
+    Color for each label
+    '''
+    color_dict = {1:(0,50,255), 2:(0,255,255), 3:(0,255,100), 4:(0,255,0), 5:(0,100,100), 6:(255,0,0)}
+    
+    return color_dict[label]
+    
+def main():
+
+    st.header("무럭무럭감자밭 CV4조")
+    st.subheader("Hand Wash Recognition")
+    handwash_app()
 
 if __name__ == "__main__":
     main()
