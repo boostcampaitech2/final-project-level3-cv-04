@@ -9,10 +9,6 @@ from typing import List, NamedTuple
 from streamlit.type_util import convert_anything_to_df
 from streamlit_webrtc import (VideoProcessorBase, WebRtcMode, webrtc_streamer, RTCConfiguration)
 
-RTC_CONFIGURATION = RTCConfiguration(
-    {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
-)
-
 def handwash_app():
     class Detection(NamedTuple):
         '''
@@ -29,27 +25,33 @@ def handwash_app():
 
         def __init__(self) -> None:
             self.result_queue = queue.Queue()
+            self.frame_cnt = 0
+            self.response = 0
 
         def recv(self, frame: av.VideoFrame) -> av.VideoFrame: 
             result: List[Detection] = []
             image = frame.to_ndarray(format="bgr24")
-            file = encode_image(image)
 
-            response = requests.post("http://49.50.165.66:6012/", files=file) 
-            label, confidence, bbox = response.json()['label'], response.json()['confidence'], response.json()['bbox'] 
+            if self.frame_cnt % 5 == 0:
+                file = encode_image(image)
+                self.response = requests.post("http://49.50.165.66:6012/", files=file) 
+                
+            label, confidence, bbox = self.response.json()['label'], self.response.json()['confidence'], self.response.json()['bbox']   
             if label is not None:
                 label = int(label) + 1
-
-            if bbox:
                 image = annotate_bbox(image, label, confidence, bbox) 
 
-            result.append(Detection(step=label, prob=confidence))
-            self.result_queue.put(result)
+            if self.frame_cnt % 5 == 0:    
+                result.append(Detection(step=label, prob=confidence))
+                self.result_queue.put(result)
+
+            self.frame_cnt += 1
 
             return av.VideoFrame.from_ndarray(image, format="bgr24")
 
     # Init variance
     init_var()
+    RTC_CONFIGURATION = RTCConfiguration({"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]})
     my_bar = st.progress(0)
     current_step_descript = st.empty()
     frame_rate = 30
