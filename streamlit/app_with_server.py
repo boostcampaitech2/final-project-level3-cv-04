@@ -16,6 +16,7 @@ def handwash_app():
         '''
         step: int
         prob: float
+        
     class Video(VideoProcessorBase):
         '''
         Video process
@@ -45,12 +46,14 @@ def handwash_app():
 
     # Init variance
     init_var()
-    
+    my_bar = st.progress(0)
+    current_step_descript = st.empty()
+    frame_rate = 30
     webrtc_ctx = webrtc_streamer(
         key="object_detection",
         mode=WebRtcMode.SENDRECV, 
         video_processor_factory=Video,
-        media_stream_constraints={"video": True, "audio": False}, 
+        media_stream_constraints={"video": {"frameRate": {"ideal": frame_rate}}, "audio": False}, 
         async_processing=True,
     )
 
@@ -70,9 +73,8 @@ def handwash_app():
         if webrtc_ctx.state.playing:  # when vid is playing
             current_step = 1  # index for handwashing step
             percent_complete = 0  # percentage to show on progressbar
-            my_bar = st.progress(0)
             webrtc_ctx.video_processor.result_queue.queue.clear()
-            current_step_descript = st.empty()
+
             while True:
                 if webrtc_ctx.video_processor:
                     try:
