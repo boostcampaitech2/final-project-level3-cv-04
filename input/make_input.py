@@ -1,17 +1,13 @@
 import os
+from re import I
 import cv2
 import pandas as pd
 from tqdm import tqdm
 from multiprocessing import Pool
 import numpy as np
 # --- Custom Var ---
-SAVE_IMAGE_ROOT = "./image"
+SAVE_IMAGE_ROOT = "./hospital_image"
 RESIZE = (320,240)
-
-CSV_RANGE = []
-CSV_RANGE.extend([("train.csv",x) for x in range(1,9)])
-CSV_RANGE.extend([("valid.csv",x) for x in range(9,12)])
-DATASET_CUSTOM_NAME = "dataset"
 
 DATASET_NUM = range(1,12)
 DATASET_NAME = "./DataSet"
@@ -23,23 +19,27 @@ IMAGE_FORMAT = ".jpeg" #jpeg(jpg) | png
 # ------------------
 
 def initFile():
-	for csvName, _ in CSV_RANGE:
+	for csvName in ["train.csv","valid.csv"]:
 		if os.path.isfile(csvName):
 			os.remove(csvName)
 	
 	os.makedirs(SAVE_IMAGE_ROOT,exist_ok=True)
-	for i in DATASET_NUM:
-		os.makedirs(os.path.join(SAVE_IMAGE_ROOT,DATASET_CUSTOM_NAME+str(i)),exist_ok=True)
+	for i in range(6):
+		os.makedirs(os.path.join(SAVE_IMAGE_ROOT,str(i+1)),exist_ok=True)
 
 
-def makeInput(datasetNum, labelName, position):
+def makeInput(datasetNum):
 	rootDir = DATASET_NAME+str(datasetNum)
 	videoRoot = os.path.join(rootDir,DATASET_VIDEO)
 	videoFiles = os.listdir(videoRoot)
-
+	labelName = "train.csv"
 	cnt = 0
-	for video in tqdm(videoFiles,position=position, leave=False):
+	
+	for idx, video in enumerate(tqdm(videoFiles,position=datasetNum-1,leave=True,desc=f"datasetNum : {datasetNum}")):
 		labelList = []
+
+		# if labelName=="train.csv" and idx > len(videoFiles) * 0.8:
+		# 	labelName = "valid.csv"
 
 		csv = ".".join(video.split(".")[:-1])+".csv"
 		annotations = [pd.read_csv(os.path.join(rootDir,DATASET_ANNOTATION,x,csv)).to_numpy().tolist() 
@@ -48,41 +48,42 @@ def makeInput(datasetNum, labelName, position):
 			]
 
 		cap = cv2.VideoCapture(os.path.join(videoRoot,video))
-		for line in zip(*annotations):
+
+		for j, line in enumerate(zip(*annotations)):
 			vertical = list(zip(*line))
-			# if 0.0 in vertical[2]:
-			# 	continue
-			if len(set(vertical[0])) != 1:
-				continue 
-			frame = vertical[0][0]
+			if 0.0 in vertical[2] or 7.0 in vertical[2]: #0,7번 라벨 거름
+				continue
 
-			ls = [0] * 8
+			ls = []
 			for i in vertical[2]:
-				ls[int(i)] += 1
-			lsSum = sum(ls)
-			ls = [x/lsSum for x in ls]
+				ls.append(int(i)) 
+			
+			if len(set(ls)) > 1:
+				continue
+			
+			label = int(ls[0])
 
-			image = readFrame(cap, frame)
+			image = readFrame(cap, j)
 			if not isHand(image):
 				continue
 			image = cv2.resize(image,RESIZE)
-			fileName = f"{DATASET_CUSTOM_NAME+str(datasetNum)}/{cnt:07d}{IMAGE_FORMAT}"
+			fileName = f"{str(label)}/{cnt:07d}{IMAGE_FORMAT}"
+
 
 			fullFileName = os.path.join(SAVE_IMAGE_ROOT,fileName)
 			if not os.path.isfile(fullFileName):
 				cv2.imwrite(fullFileName,image)
 
 			oneLabel = [fullFileName]
-			oneLabel.extend(ls)
-			oneLabel.append(round(sum(vertical[1])/len(vertical[1])))
+			oneLabel.append(label)
 			oneLabel.append(video)
 			labelList.append(oneLabel)
 			cnt+=1
-		pd.DataFrame(labelList,columns=["file_name","0","1","2","3","4","5","6","7","is_washing","video_name"]).to_csv(labelName, mode="a",header=not os.path.isfile(labelName),index=False)
+		pd.DataFrame(labelList,columns=["file_name","label","video_name"]).to_csv(labelName, mode="a",header=not os.path.isfile(labelName),index=False)
 		cap.release()
 
 def readFrame(cap, frame):
-	cap.set(cv2.CAP_PROP_FRAME_COUNT, frame)
+	cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
 	ok, image = cap.read()
 
 	if not ok:
@@ -115,17 +116,15 @@ def isHand(frame):
 
 	areas = [cv2.contourArea(x) for x in contours]
 
-	if areas[0] < 6000:
+	if areas[0] < 4000:
 		return False
 	return True
 	
 
-def start(mode):
-	position, csv = mode
-	csvName, csvNum = csv
-	makeInput(csvNum,csvName,position)
+def start(datasetNum):
+	makeInput(datasetNum)
 
 if __name__=="__main__":
 	initFile()
-	with Pool(len(CSV_RANGE)) as p:
-		p.map(start,enumerate(CSV_RANGE))
+	with Pool(len(DATASET_NUM)) as p:
+		p.map(start,DATASET_NUM)

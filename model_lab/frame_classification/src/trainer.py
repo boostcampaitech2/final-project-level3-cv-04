@@ -2,6 +2,11 @@ import torch
 from torch.cuda.amp.grad_scaler import GradScaler
 from torch.cuda.amp import autocast
 from tqdm import tqdm
+import numpy as np
+from src.save_helper import SaveHelper
+import time
+from src.wandb_helper import WandB
+from tqdm import tqdm
 
 class Trainer:
 	def __init__(self, config, trainDataloader, validDataloader, model, optimizer, criterion, scheduler):
@@ -14,19 +19,29 @@ class Trainer:
 		self.criterion = criterion
 		self.scheduler = scheduler
 		self.scaler = GradScaler()
+		self.saveHelper = SaveHelper(config)
+		self.config["save_dirs"] = self.saveHelper.getSavedDir()
+		self.WandB = WandB(self.config)
+		self.fullTQDM = tqdm(range(self.config["epoch"]),position=0)
 
 	def start(self):
-		
-		for epoch in range(self.config["epoch"]):
+		for epoch in self.fullTQDM:
+			self.fullTQDM.set_description(f"Now epoch : {epoch}")
 			self.train()
 			self.valid()
-			torch.save(self.model,"./test_model.pth")
-	
+
+			nowF1 = self.WandB.getF1()
+			if self.saveHelper.checkBestF1(nowF1, epoch):
+				self.saveHelper.saveModel(epoch,self.model,self.optimizer,self.scheduler)
+				self.saveHelper.removeModel()
+				self.fullTQDM.set_postfix({"Last Saved Epoch" : epoch, "F1":nowF1})
+
+		
 	def train(self):
 		self.model.train()
-		total_loss = 0
-		total_match = 0
-		trainTQDM = tqdm(self.trainDataloader)
+		trainLoss = 0
+		trainAcc = 0
+		trainTQDM = tqdm(self.trainDataloader,leave=False,position=1,desc="Train...")
 
 		for images,labels in trainTQDM:
 			images = images.to(self.device)
@@ -34,31 +49,40 @@ class Trainer:
 			self.optimizer.zero_grad()
 			with autocast():
 				outputs = self.model(images)
-				loss = self.criterion(outputs, labels)
+				loss = self.criterion(outputs,labels)
 			self.scaler.scale(loss).backward()
 			self.scaler.step(self.optimizer)
 			self.scaler.update()
+			self.scheduler.step()
 
 			preds = torch.argmax(outputs,dim=-1)
-			hardLabels = torch.argmax(labels,dim=-1)
 
-			total_loss += loss.item()
-			total_match += (preds==hardLabels).sum().item()
-			trainTQDM.set_description(desc=f"loss : {loss.item()/len(labels):02f}, acc : {(preds==hardLabels).sum().item()/len(labels):02f}")
+			loss = loss.item() / self.config["batch"]
+			acc = (preds==labels).sum().item() / self.config["batch"]
 
-		total_loss = total_loss / len(self.trainDataloader) / self.config["batch"]
-		total_acc = total_match / len(self.trainDataloader) / self.config["batch"]
-		print(f"train loss = {total_loss:04f}")
-		print(f"total acc = {total_acc:04f}")
+			trainTQDM.set_postfix({"Train loss" : loss, "Train Acc" : acc})
+			self.WandB.trainLog(loss,acc,self.scheduler.get_last_lr())
+			
+			trainLoss += loss
+			trainAcc += acc
+
+		trainLoss = trainLoss / len(self.trainDataloader)
+		trainAcc = trainAcc / len(self.trainDataloader)
+
 
 	def valid(self):
+
+		confusion_matrix = torch.zeros(self.config["num_classes"],self.config["num_classes"])
 
 		with torch.no_grad():
 			self.model.eval()
 		
-			total_loss = 0
-			total_match = 0
-			validTQDM = tqdm(self.validDataloader)
+			validLoss = 0
+			validAcc = 0
+			validTQDM = tqdm(self.validDataloader,leave=False,position=1,desc="Valid...")
+			predList = None
+			yTrueList = None
+			t = time.time()
 			for images,labels in validTQDM:
 				images = images.to(self.device)
 				labels = labels.to(self.device)
@@ -67,13 +91,23 @@ class Trainer:
 				loss = self.criterion(outputs, labels)
 
 				preds = torch.argmax(outputs,dim=-1)
-				hardLabels = torch.argmax(labels,dim=-1)
+				
+				loss = loss.item() / self.config["batch"]
+				acc = (preds==labels).sum().item() / self.config["batch"]
 
-				total_loss += loss.item()
-				total_match += (preds==hardLabels).sum().item()
-				validTQDM.set_description(desc=f"loss : {loss.item()/len(labels):02f}, acc : {(preds==hardLabels).sum().item()/len(labels):02f}")
-			
-		total_loss = total_loss / len(self.validDataloader) / self.config["batch"]
-		total_acc = total_match / len(self.validDataloader) / self.config["batch"]
-		print(f"valid loss = {total_loss:04f}")
-		print(f"valid acc = {total_acc:04f}")		
+				for t, p in zip(labels.view(-1),preds.view(-1)):
+					confusion_matrix[t.long(), p.long()] += 1
+
+				validLoss += loss
+				validAcc += acc
+				validTQDM.set_postfix({"Valid loss" : loss, "Valid Acc" : acc})
+
+				labels = labels.cpu()
+				preds = preds.cpu()
+				predList = np.hstack((predList, preds)) if predList is not None else np.array(preds)
+				yTrueList = np.hstack((yTrueList, labels)) if yTrueList is not None else np.array(labels)
+
+		validLoss = validLoss / len(self.validDataloader)
+		validAcc = validAcc / len(self.validDataloader)
+		t = (time.time()-t) / len(self.validDataloader) / self.config["batch"]
+		self.WandB.validLog(predList,yTrueList,validLoss,validAcc,confusion_matrix,t)
