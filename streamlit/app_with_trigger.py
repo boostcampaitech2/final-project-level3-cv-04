@@ -65,7 +65,7 @@ def handwash_app():
     )
 
     if webrtc_ctx.state.playing:  # when vid is playing
-        current_step = 1  # index for handwashing step
+        current_step = 0  # index for handwashing step
         percent_complete = 0  # percentage to show on progressbar
         webrtc_ctx.video_processor.result_queue.queue.clear()
         trigger = False # use trigger to start hand wash
@@ -79,7 +79,15 @@ def handwash_app():
                     ))
                 except queue.Empty:
                     pass 
-                
+                                    
+                if st.session_state['change_image']:
+                    st.session_state['change_image'] = False 
+                    
+                    concat_img = step_image(current_step)  
+                    with current_step_descript.container():
+                        st.image(concat_img, use_column_width=True, clamp = True)  
+                        st.write(step_description(current_step))
+                                
                 if len(st.session_state['collect_result']) >= st.session_state['collect_frame']:
                     classes = [i[0].step for i in st.session_state['collect_result']]
                     final_result = max(classes, key=classes.count) 
@@ -90,15 +98,7 @@ def handwash_app():
                             percent_complete += 10  # add percentage
                             my_bar.progress(percent_complete)  # show percentage on progress bar
                             time.sleep(0.1)  # to slow down the progress
-                            
-                        if st.session_state['change_image']:
-                            st.session_state['change_image'] = False 
-                            concat_img = step_image(current_step)
-                                
-                            with current_step_descript.container():
-                                st.image(concat_img, use_column_width=True, clamp = True)  
-                                st.write(step_description(current_step))
-                                        
+ 
                         if percent_complete == 100:  # when the step is done
                             current_step += 1  # go to the next step
                             st.session_state['change_image'] = True
@@ -108,14 +108,18 @@ def handwash_app():
 
                         if current_step == 7:
                             init_var()
-                            st.markdown("Complete hand wash")
+                            current_step = 0
                             trigger = False
-                            break 
                     else: 
-                        if final_result == 1: cnt += 1
-                        else: cnt = 0
-                        if cnt == 3: trigger = True
-
+                        if final_result == 1: 
+                            cnt += 1
+                        else: 
+                            cnt = 0
+                        if cnt == 3: 
+                            current_step += 1
+                            st.session_state['change_image'] = True
+                            current_step_descript.empty()
+                            trigger = True
 
     footer = st.empty()
     footer.markdown(
@@ -138,8 +142,12 @@ def step_image(current_step):
     concat_img = []
     for idx, img in enumerate(st.session_state['step_images']):
         values = [0, 0, 0]
-        if current_step - 1 == idx: # Current Step
+        
+        if current_step == 0:
+            pass
+        elif current_step - 1 == idx: # Current Step
             values = [0, 0, 255] # Make Red Border
+
         img = cv2.copyMakeBorder(
             img,
             top=3, bottom=3, left=3, right=3,
@@ -158,6 +166,7 @@ def step_description(current_step):
     Step description
     '''
     description_dict = {
+        0:'Step 0. Prepare to wash',
         1:'Step 1. Palm to palm',
         2:'Step 2. Right palm over left dorsum, left palm over right dorsum', 
         3:'Step 3. Plam to palm, fingers interlaced', 
