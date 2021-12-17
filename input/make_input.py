@@ -1,11 +1,12 @@
 import os
+from re import I
 import cv2
 import pandas as pd
 from tqdm import tqdm
 from multiprocessing import Pool
 import numpy as np
 # --- Custom Var ---
-SAVE_IMAGE_ROOT = "./image"
+SAVE_IMAGE_ROOT = "./hospital_image"
 RESIZE = (320,240)
 
 DATASET_NUM = range(1,12)
@@ -48,7 +49,7 @@ def makeInput(datasetNum):
 
 		cap = cv2.VideoCapture(os.path.join(videoRoot,video))
 
-		for idx, line in enumerate(zip(*annotations)):
+		for j, line in enumerate(zip(*annotations)):
 			vertical = list(zip(*line))
 			if 0.0 in vertical[2] or 7.0 in vertical[2]: #0,7번 라벨 거름
 				continue
@@ -62,11 +63,12 @@ def makeInput(datasetNum):
 			
 			label = int(ls[0])
 
-			image = readFrame(cap, idx)
+			image = readFrame(cap, j)
 			if not isHand(image):
 				continue
 			image = cv2.resize(image,RESIZE)
 			fileName = f"{str(label)}/{cnt:07d}{IMAGE_FORMAT}"
+
 
 			fullFileName = os.path.join(SAVE_IMAGE_ROOT,fileName)
 			if not os.path.isfile(fullFileName):
