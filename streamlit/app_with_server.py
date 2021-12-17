@@ -7,7 +7,11 @@ import time
 import numpy as np
 from typing import List, NamedTuple
 from streamlit.type_util import convert_anything_to_df
-from streamlit_webrtc import (VideoProcessorBase, WebRtcMode, webrtc_streamer)
+from streamlit_webrtc import (VideoProcessorBase, WebRtcMode, webrtc_streamer, RTCConfiguration)
+
+RTC_CONFIGURATION = RTCConfiguration(
+    {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
+)
 
 def handwash_app():
     class Detection(NamedTuple):
@@ -52,6 +56,7 @@ def handwash_app():
     webrtc_ctx = webrtc_streamer(
         key="object_detection",
         mode=WebRtcMode.SENDRECV, 
+        rtc_configuration=RTC_CONFIGURATION,
         video_processor_factory=Video,
         media_stream_constraints={"video": {"frameRate": {"ideal": frame_rate}}, "audio": False}, 
         async_processing=True,
@@ -207,7 +212,7 @@ def color(label):
     '''
     Color for each label
     '''
-    color_dict = {1:(0,50,255), 2:(0,255,255), 3:(0,255,100), 4:(0,255,0), 5:(0,100,100), 6:(255,0,0)}
+    color_dict = {1:(0,0,255), 2:(0,128,255), 3:(0,255,255), 4:(0,255,0), 5:(255,0,0), 6:(255,0,128)}
     
     return color_dict[label]
     
