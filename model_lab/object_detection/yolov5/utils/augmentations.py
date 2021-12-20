@@ -22,13 +22,14 @@ class Albumentations:
             check_version(A.__version__, '1.0.3', hard=True)  # version requirement
 
             self.transform = A.Compose([
-                A.RandomCropNearBBox(p=0.2, cropping_box_key="croppping_bbox"), 
-                A.Blur(p=0.01),
+                #A.RandomCropNearBBox(p=0.2, cropping_box_key="croppping_bbox"), 
+                A.RandomSizedBBoxSafeCrop(height=640, width=640, p=0.15),
                 A.MedianBlur(p=0.01),
+                A.MotionBlur(p=0.08),
                 #A.ToGray(p=0.01),
-                A.CLAHE(p=0.3),
-                A.RandomBrightnessContrast(p=0.2),
-                A.RandomGamma(p=0.0),
+                A.CLAHE(p=0.2),
+                A.RandomBrightnessContrast(brightness_limit=(0.0, 0.2), p=0.5),
+                A.RandomGamma(p=0.01),
                 A.ImageCompression(quality_lower=75, p=0.0)],
                 bbox_params=A.BboxParams(format='yolo', min_visibility=0.3, label_fields=['class_labels']))
 
@@ -144,7 +145,7 @@ def random_perspective(im, targets=(), segments=(), degrees=10, translate=.1, sc
     R = np.eye(3)
     a = random.uniform(-degrees, degrees)
     # a += random.choice([-180, -90, 0, 90])  # add 90deg rotations to small rotations
-    s = random.uniform(1 - scale, 1 + scale)
+    s = random.uniform(1, 1 + scale) #SEYOUNG - modified only scale up
     # s = 2 ** random.uniform(-scale, scale)
     R[:2] = cv2.getRotationMatrix2D(angle=a, center=(0, 0), scale=s)
 
