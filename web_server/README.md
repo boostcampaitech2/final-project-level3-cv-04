@@ -19,3 +19,8 @@ C++ x64/x86 build tools
 For more Detail : [vidgear](https://abhitronix.github.io/vidgear/v0.2.3-stable/installation/source_install/)
 ## Install Dependency
 ` $ pip install -r requirements.txt `
+
+
+## Run
+
+` streamlit run app.py --server.port 6006 `

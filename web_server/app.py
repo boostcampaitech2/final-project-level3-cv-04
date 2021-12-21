@@ -44,23 +44,24 @@ def handwash_app():
             if self.frame_cnt % 3 == 0:    
                 result.append(Detection(step=label, prob=confidence))
                 self.result_queue.put(result)
-
+                frame_cnt = 0
+                
             self.frame_cnt += 1
 
             return av.VideoFrame.from_ndarray(image, format="bgr24")
 
     # Init variance
     init_var()
-    RTC_CONFIGURATION = RTCConfiguration({"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]})
+    RTC_CONFIGURATION = RTCConfiguration({"iceServers": [{"urls": ["stun:stun.xten.com:3478"]}]})
     my_bar = st.progress(0)
     current_step_descript = st.empty()
-    frame_rate = 30
+    frame_rate = 15
     webrtc_ctx = webrtc_streamer(
-        key="object_detection",
+        key="object-detection",
         mode=WebRtcMode.SENDRECV, 
         rtc_configuration=RTC_CONFIGURATION,
         video_processor_factory=Video,
-        media_stream_constraints={"video": {"frameRate": {"ideal": frame_rate}}, "audio": False}, 
+        media_stream_constraints={"video": {"frameRate": {"ideal": frame_rate}, "width": 640, "height": 640}, "audio": False}, 
         async_processing=True,
     )
 
@@ -87,18 +88,27 @@ def handwash_app():
                     with current_step_descript.container():
                         st.image(concat_img, use_column_width=True, clamp = True)  
                         st.write(step_description(current_step))
-                                
+
+                    #st.empty()
+                    st.markdown(
+                        """<style>
+                        .st-bk {{
+                            background-color: {};
+                        }}
+                        </style>""".format(bgcolor(current_step)
+                        ), unsafe_allow_html=True)
+        
                 if len(st.session_state['collect_result']) >= st.session_state['collect_frame']:
                     classes = [i[0].step for i in st.session_state['collect_result']]
                     final_result = max(classes, key=classes.count) 
                     st.session_state['collect_result'] = [] 
                     
-                    if trigger:  
+                    if trigger:
                         if final_result == current_step:  # when prediction equals to current step
-                            percent_complete += 10  # add percentage
+                            percent_complete += 20  # add percentage
                             my_bar.progress(percent_complete)  # show percentage on progress bar
                             time.sleep(0.1)  # to slow down the progress
- 
+
                         if percent_complete == 100:  # when the step is done
                             current_step += 1  # go to the next step
                             st.session_state['change_image'] = True
@@ -115,17 +125,14 @@ def handwash_app():
                             cnt += 1
                         else: 
                             cnt = 0
+
                         if cnt == 3: 
                             current_step += 1
                             st.session_state['change_image'] = True
                             current_step_descript.empty()
                             trigger = True
-
-    footer = st.empty()
-    footer.markdown(
-        "This hand wash recognition model from "
-        "https://github.com/boostcampaitech2/final-project-level3-cv-04/ "
-    )
+            else:
+                break
 
 def encode_image(image):
     '''
@@ -217,12 +224,26 @@ def color(label):
     color_dict = {1:(0,0,255), 2:(0,128,255), 3:(0,255,255), 4:(0,255,0), 5:(255,0,0), 6:(255,0,128)}
     
     return color_dict[label]
+
+def bgcolor(label):
+    '''
+    Bgcolor for each label
+    '''
+    color_dict = {0: "FFFFFF",1:"#FF0000", 2:"#FF8000", 3:"#FFFF00", 4:"#00FF00", 5:"#0000FF", 6:"#8000FF"}
+
+    return color_dict[label]
     
 def main():
 
     st.header("무럭무럭감자밭 CV4조")
     st.subheader("Hand Wash Recognition")
     handwash_app()
+    
+    footer = st.empty()
+    footer.markdown(
+        "This hand wash recognition model from "
+        "https://github.com/boostcampaitech2/final-project-level3-cv-04/"
+    )
 
 if __name__ == "__main__":
     main()
