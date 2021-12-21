@@ -9,8 +9,6 @@ import numpy as np
 SAVE_IMAGE_ROOT = "./hospital_image"
 RESIZE = (320,240)
 
-DATASET_CUSTOM_NAME = "dataset"
-
 DATASET_NUM = range(1,12)
 DATASET_NAME = "./DataSet"
 
@@ -26,8 +24,8 @@ def initFile():
 			os.remove(csvName)
 	
 	os.makedirs(SAVE_IMAGE_ROOT,exist_ok=True)
-	#for i in DATASET_NUM:
-	#	os.makedirs(os.path.join(SAVE_IMAGE_ROOT,DATASET_CUSTOM_NAME+str(i)),exist_ok=True)
+	for i in range(6):
+		os.makedirs(os.path.join(SAVE_IMAGE_ROOT,str(i+1)),exist_ok=True)
 
 
 def makeInput(datasetNum):
@@ -36,11 +34,12 @@ def makeInput(datasetNum):
 	videoFiles = os.listdir(videoRoot)
 	labelName = "train.csv"
 	cnt = 0
-	for i, video in enumerate(tqdm(videoFiles,position=datasetNum-1,leave=True)):
+	
+	for idx, video in enumerate(tqdm(videoFiles,position=datasetNum-1,leave=True,desc=f"datasetNum : {datasetNum}")):
 		labelList = []
 
-		if labelName=="train.csv" and i > len(videoFiles) * 0.8:
-			labelName = "valid.csv"
+		# if labelName=="train.csv" and idx > len(videoFiles) * 0.8:
+		# 	labelName = "valid.csv"
 
 		csv = ".".join(video.split(".")[:-1])+".csv"
 		annotations = [pd.read_csv(os.path.join(rootDir,DATASET_ANNOTATION,x,csv)).to_numpy().tolist() 
@@ -55,29 +54,32 @@ def makeInput(datasetNum):
 			if 0.0 in vertical[2] or 7.0 in vertical[2]: #0,7번 라벨 거름
 				continue
 
-			ls = [0] * 6
+			ls = []
 			for i in vertical[2]:
-				ls[int(i)-1] += 1
-			lsSum = sum(ls)
-			ls = [x/lsSum for x in ls]
+				ls.append(int(i)) 
+			
+			if len(set(ls)) > 1:
+				continue
+			
+			label = int(ls[0])
 
 			image = readFrame(cap, j)
 			if not isHand(image):
 				continue
 			image = cv2.resize(image,RESIZE)
-			fileName = f"{datasetNum}_{cnt:07d}{IMAGE_FORMAT}"
+			fileName = f"{str(label)}/{cnt:07d}{IMAGE_FORMAT}"
+
 
 			fullFileName = os.path.join(SAVE_IMAGE_ROOT,fileName)
 			if not os.path.isfile(fullFileName):
 				cv2.imwrite(fullFileName,image)
 
 			oneLabel = [fullFileName]
-			oneLabel.extend(ls)
-			oneLabel.append(round(sum(vertical[1])/len(vertical[1])))
+			oneLabel.append(label)
 			oneLabel.append(video)
 			labelList.append(oneLabel)
 			cnt+=1
-		pd.DataFrame(labelList,columns=["file_name","1","2","3","4","5","6","is_washing","video_name"]).to_csv(labelName, mode="a",header=not os.path.isfile(labelName),index=False)
+		pd.DataFrame(labelList,columns=["file_name","label","video_name"]).to_csv(labelName, mode="a",header=not os.path.isfile(labelName),index=False)
 		cap.release()
 
 def readFrame(cap, frame):
