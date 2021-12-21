@@ -1,4 +1,0 @@
-streamlit-webrtc 
-opencv-python-headless 
-matplotlib 
-pydub
