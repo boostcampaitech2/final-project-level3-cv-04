@@ -22,4 +22,5 @@ input/handtracking/*
 output/*
 
 # model
-streamlit/models
+detect_server/saved/*
+!detect_server/saved/README.md
