@@ -1,3 +1,4 @@
+from genericpath import exists
 from utils import detector_utils as detector_utils
 import cv2
 import tensorflow as tf
@@ -43,9 +44,9 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def render_bbox(score_thresh, IMAGE_PATH, SAVE_PATH):
+def render_bbox(score_thresh, IMAGE_PATH, SAVE_IMG_PATH, SAVE_TXT_PATH):
     # Save no_object.txt per one directory(class)
-    no_object = open(os.path.join(SAVE_PATH, "no_object.txt"), "a+")
+    no_object = open(os.path.join(SAVE_IMG_PATH, "no_object.txt"), "w+")
     for filename in tqdm(os.listdir(IMAGE_PATH)):
         filepath = os.path.join(IMAGE_PATH, filename)
 
@@ -91,13 +92,29 @@ def render_bbox(score_thresh, IMAGE_PATH, SAVE_PATH):
             p2 = (int(right * im_width), int(bottom * im_height))
             cv2.rectangle(image_np, p1, p2, (77, 255, 9), 3, 1)
             image_np = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
-            cv2.imwrite(os.path.join(SAVE_PATH, filename), image_np)
-
+            cv2.imwrite(os.path.join(SAVE_IMG_PATH, filename), image_np)
+            # Save .txt file
+            final_bbox = hand_coordinates[0]
+            left, right, top, bottom = final_bbox
+            cx = (left + right) / 2
+            cy = (top + bottom) / 2
+            width = right - left
+            height = bottom - top
+            label = IMAGE_PATH.split("/")[-2]
+            f = open(os.path.join(SAVE_TXT_PATH, filename.replace("jpg", "txt")), "x")
+            f.write(f"{label}\t{cx}\t{cy}\t{width}\t{height}")
+            f.close()
     no_object.close()
 
 if __name__ == '__main__':
     args = parse_args()
 
-    IMAGE_PATH = args.imgdir
-    SAVE_PATH = args.savedir
-    render_bbox(args.score_thresh, IMAGE_PATH, SAVE_PATH)
+    IMAGE_ROOT = args.imgdir
+    SAVE_ROOT = args.savedir
+    for i in range(0, 6):
+        impath = os.path.join(IMAGE_ROOT, str(i))
+        save_impath = os.path.join(SAVE_ROOT, f"{i}/image")
+        save_txtpath = os.path.join(SAVE_ROOT, f"{i}/label")
+        os.makedirs(save_impath, exist_ok=True)
+        os.makedirs(save_txtpath, exist_ok=True)
+        render_bbox(args.score_thresh, impath, save_impath, save_txtpath)

@@ -210,9 +210,7 @@ def image(score_thresh, IMAGE_PATH, TXT_PATH):
             height = bottom - top
             #print(cx, cy, width, height)
             # Append in .txt file
-            f = open(txtpath, 'r')
-            label = str(f.readline()).split("\t")[0]
-            f.close()
+            label = IMAGE_PATH.split("/")[-2]
             f = open(txtpath, 'w')
             f.write(f"{label}\t{cx}\t{cy}\t{width}\t{height}")
             f.close()
