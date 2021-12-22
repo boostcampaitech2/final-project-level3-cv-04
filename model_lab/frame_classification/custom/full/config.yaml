@@ -1,7 +1,7 @@
 root : "../../input"
 train_csv : "full_train.csv"
 valid_csv : "full_valid.csv"
-batch : 256
+batch : 128
 lr : 0.01
 epoch : 50
 num_classes : 6
@@ -9,7 +9,7 @@ num_classes : 6
 seed : 42
 
 output_path : "../../output/frame_classification"
-output_dir : "full"
+output_dir : "mob_v3_large"
 save_capacity : 5
 
 wandb : True

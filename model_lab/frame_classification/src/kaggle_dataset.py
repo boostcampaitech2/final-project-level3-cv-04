@@ -26,6 +26,7 @@ class WashingDataset(Dataset):
 		fileName = item[0]
 		label = item[1]
 		
+		
 		image = cv2.imread(os.path.join(self.inputRoot,fileName))
 		image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
 		image = self.transform(image=image)['image']
@@ -33,5 +34,4 @@ class WashingDataset(Dataset):
 		return image, label-1
 	
 	def getLabelForWeighted(self,index):
-
-		return int(self.data.iloc[index][1].item())-1
+		return int(self.data.iloc[index][1])-1

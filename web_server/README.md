@@ -17,10 +17,14 @@ Windows 10 SDK
 C++ x64/x86 build tools
 
 For more Detail : [vidgear](https://abhitronix.github.io/vidgear/v0.2.3-stable/installation/source_install/)
+
 ## Install Dependency
 ` $ pip install -r requirements.txt `
 
 
-## Run
+# Run
 
+1. Edit Detection Server address from [here](https://github.com/boostcampaitech2/final-project-level3-cv-04/blob/dfbc723180c52eb5c182c687983c6e01b377b317/web_server/app.py#L37)
+
+2. Run Streamlit
 ` streamlit run app.py --server.port 6006 `

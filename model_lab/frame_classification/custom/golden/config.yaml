@@ -1,0 +1,23 @@
+root : "../../input"
+# train_csv : "1216train.csv"
+# valid_csv : "1216valid.csv"
+train_csv : "good_full.csv"
+valid_csv : "golden_label.csv"
+batch : 32
+lr : 0.01
+epoch : 50
+num_classes : 6
+
+seed : 42
+
+output_path : "../../output/frame_classification"
+output_dir : "lastvalid_1216"
+save_capacity : 5
+
+wandb : True
+wandb_project : "handwash"
+wandb_entity : "cv4"
+wandb_group : "golden"
+log_freq : 10
+
+class_names : ["Step 1","Step 2","Step 3","Step 4","Step 5","Step 6"]
