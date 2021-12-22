@@ -13,13 +13,13 @@
 - 기존의 rule-based 방식으로는 변수를 고려하기 어려운 문제(피부색, 촬영 환경, 개인마다 다른 손 모양 등)가 있어 다양한 데이터를 통해 학습된 딥러닝 모델로 문제 해결
 - 아동 손 씻기 교육을 위한 스마트폰 애플리케이션이나 음식점, 병원, 공공장소 등에서 사용될 수 있는 손 씻기 검수 애플리케이션 등 다양한 분야에서 사용될 수 있음
 
-### Service Architecture
+
+### 👀 Demo
 
 <p align="center">
-    <img src="src/service_architecture.png">
+    <img src="src/demo_2x.gif">
 </p>
 
-- 설명 설명
 
 ### Model
 
@@ -42,17 +42,21 @@
 |:---:|:---:|
 |<img src="src/model/before.gif">|<img src="src/model/after.gif">|
 
-### Serving
+
+### Service Architecture
+
+#### Overall Architecture
+
+<p align="center">
+    <img src="src/service_architecture.png">
+</p>
+
+#### Post Processing
 
 <p align="center">
     <img src="src/input_output.png">
 </p>
 
-## 👀 Demo
-
-<p align="center">
-    <img src="src/demo_2x.gif">
-</p>
 
 ## 🗂 Work Directory
 ```
