@@ -23,7 +23,19 @@
 
 ### Model
 
-뭘,,쓸까,,
+#### Real Time Object Detection with YOLOv5
+
+|Model||mAP50|
+|---|:----|:---|
+|YOLOv5s|Batch Size 144|0.715|
+||+ Brightness Aug ↑ |0.7457|
+||+ Mosaic, Mixup ↑ |0.7457|
+|YOLOv5s Multiscale|Batch Size 64|0.715|
+||+ Brightness Aug ↑ |0.8643|
+||+ Mosaic, Mixup ↑ |0.8753|
+|YOLOv5m|Batch Size 100|N/A|
+||+ Brightness Aug ↑ |0.7966|
+||+ Mosaic, Mixup ↑ |0.8375|
 
 ### Serving
 
