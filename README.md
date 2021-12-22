@@ -37,7 +37,7 @@
     <img src="src/demo.gif">
 </p>
 
-## 🤝 Work Directory
+## 🗂 Work Directory
 ```
 ├──detect_server    # server for inference
 |   ├──models           # YOLOv5 model and config files
