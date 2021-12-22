@@ -5,7 +5,7 @@
 ### Level 2 CV Team 4 - 무럭무럭 감자밭 🥔🌱
 |김세영|박성진|신승혁|이상원|이윤영|이채윤|조성욱|
 |:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-|<img src="src/profile/seyoung.png" width='300px'>|<img src="src/profile/seongzin.png" width='300px'>|<img src="src/profile/seungss.png" width='300px'>|<img src="src/profile/sangwon.png" width='300px'>|<img src="src/profile/yoonyoung.png" width='300px'>|<img src="src/profile/raelee.png" width='300px'>|<img src="src/profile/seongwook.png" width='300px'>|
+|<a href="https://github.com/Seyoung9304"><img src="src/profile/seyoung.png" width='300px'></a>|<a href="https://github.com/8639sung"><img src="src/profile/seongzin.png" width='300px'></a>|<a href="https://github.com/seung-sss"><img src="src/profile/seungss.png" width='300px'></a>|<a href="https://github.com/14blacktea"><img src="src/profile/sangwon.png" width='300px'></a>|<a href="https://github.com/YoonyoungL"><img src="src/profile/yoonyoung.png" width='300px'></a>|<a href="https://github.com/rachel318318"><img src="src/profile/raelee.png" width='300px'></a>|<a href="https://github.com/ukcastle"><img src="src/profile/seongwook.png" width='300px'></a>|
 
 ## 🔍 Project Overview
 
