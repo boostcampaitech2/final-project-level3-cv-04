@@ -1,3 +1,8 @@
+"""
+- Author: Sungjin Park, Sangwon Lee, Rachel Lee, Seonguk Jo 
+- Contact: 8639sung@gmail.com, 14blacktea@gmail.com, rachel318318@gmail.com, josw631@gmail.com
+"""
+
 from flask import Flask, request
 import numpy as np
 import cv2

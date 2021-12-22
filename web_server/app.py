@@ -1,3 +1,8 @@
+"""
+- Author: Sungjin Park, Sangwon Lee, Rachel Lee  
+- Contact: 8639sung@gmail.com, 14blacktea@gmail.com, rachel318318@gmail.com
+"""
+
 import streamlit as st
 import requests
 import av
