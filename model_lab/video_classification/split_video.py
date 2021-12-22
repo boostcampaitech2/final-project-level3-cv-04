@@ -76,14 +76,14 @@ def split_video(data_path, to_path):
                     else:
                         subclips.append((start, j-1, now_label))
                         start = j
-                        now_label = labels
+                        now_label = label
                 else:
                     if now_label in remove_label:
                         continue
                     else:
                         subclips.append((start, j-1, now_label))
                         start = j
-                        now_label = labels
+                        now_label = label
 
             if now_label not in remove_label:
                 subclips.append((start, len(labels)-1, now_label))
