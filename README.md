@@ -37,6 +37,11 @@
 ||+ Brightness Aug ↑ |0.7966|
 ||+ Mosaic, Mixup ↑ |0.8375|
 
+
+|Base YOLOv5s|Multiscale YOLOv5s w/ augment|
+|:---:|:---:|
+|<img src="src/model/before.gif">|<img src="src/model/after.gif">|
+
 ### Serving
 
 <p align="center">
