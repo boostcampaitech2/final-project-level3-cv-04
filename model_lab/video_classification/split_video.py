@@ -1,3 +1,6 @@
+"""
+병원 데이터셋 라벨별 Subclip으로 분리
+"""
 import os
 import pandas as pd
 
@@ -19,12 +22,12 @@ def get_label(is_washing, movement_code):
 # 저장할 디렉토리 생성:
 def make_directory(to_path):
     # 디렉토리 생성
-    for i in range(0, 9):
+    for i in range(1, 7):
         os.makedirs(os.path.join(to_path, f"Class_{i}"), exist_ok=True)
 
 def split_video(data_path, to_path):
     # Dataset1 ~ Dataset12
-    for i in range (1, 12):
+    for i in range(1, 12):
         dataset_path = os.path.join(data_path, f"DataSet{i}")
         annotators = list(sorted(list_dir(os.path.join(dataset_path, "Annotations"))))
         filenames = pd.read_csv(os.path.join(dataset_path, "statistics.csv"))['filename'].tolist()
@@ -43,29 +46,53 @@ def split_video(data_path, to_path):
 
                     annotation = [get_label(is_washing, movement_code) for is_washing, movement_code, in zip(is_washings, movement_codes)]
                     annotations.append(annotation)
-            
-            start_index = 0
-            subclip = 0
+
+            if len(annotations) < 2:
+                continue
+
             temp_video, _, _ = read_video(os.path.join(dataset_path, f"Videos/{filename}.mp4")) # 비디오 불러오기
-            labels = [Counter(anno).most_common(1)[0][0] for anno in zip(*annotations)] # Annotator들이 가장 많이 라벨링한 라벨로 매핑
-            now_label = labels[0]
-
-            # 라벨별 동영상 분리
-            for j in range(len(labels)):
-                if now_label == labels[j]:
-                    continue
-                elif j - start_index < 2:
-                    now_label = labels[j]
-                    start_index = j
+            labels = []
+            # Annotator들이 가장 많이 라벨링한 라벨로 매핑
+            for anno in zip(*annotations):
+                most = Counter(anno).most_common(1)
+                if most[0][1] == len(annotations):
+                    labels.append(most[0][0])
                 else:
-                    write_video(f"{to_path}/Class_{now_label}/{filename}_{subclip}.mp4", temp_video[start_index:j-1], 30)
-                    now_label = labels[j]
-                    start_index = j
-                    subclip += 1
+                    labels.append(-1)
 
-            if len(labels) - start_index > 1:
-                write_video(f"{to_path}/Class_{now_label}/{filename}_{subclip}.mp4", temp_video[start_index:len(labels)-1], 30)
-                
+            remove_label = (-1, 0, 7, 8)
+            # 라벨별 동영상 분리
+            start = -1
+            now_label = -1
+            subclips = []
+
+            for j, label in enumerate(labels):
+                if label not in remove_label:
+                    if now_label in remove_label:
+                        start = j
+                        now_label = label
+                    elif now_label == label:
+                        continue
+                    else:
+                        subclips.append((start, j-1, now_label))
+                        start = j
+                        now_label = labels
+                else:
+                    if now_label in remove_label:
+                        continue
+                    else:
+                        subclips.append((start, j-1, now_label))
+                        start = j
+                        now_label = labels
+
+            if now_label not in remove_label:
+                subclips.append((start, len(labels)-1, now_label))
+
+            for subclip in subclips:
+                start, end, now_label = subclip
+                if end - 10 <= start:
+                    continue
+                write_video(f"{to_path}/Class_{now_label}/{filename}_{start}_{end-10}.mp4", temp_video[start:end-10], 30)
         print(f"split Dataset{i}")
 
 
@@ -73,7 +100,7 @@ if __name__ == '__main__':
     # Dataset이 들어있는 경로로 설정
     data_path = "/opt/ml/data/hand_wash/data/original"
     # 분리한 동영상 저장할 경로로 설정
-    to_path = '/opt/ml/data/hand_wash/data/split'
+    to_path = '/opt/ml/data/hand_wash/data/inspect_data'
 
     make_directory(to_path)
     split_video(data_path, to_path)
