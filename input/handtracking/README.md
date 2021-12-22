@@ -1,4 +1,4 @@
-﻿# Annotate Hand Bounding Box 
+﻿# Pseudo Labeling Hand Bounding Box 
 Make hand detected bounding box using pre-trained model. 
 - Input: 
   - Image file (.jpeg) 

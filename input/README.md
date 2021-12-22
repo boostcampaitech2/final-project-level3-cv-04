@@ -15,3 +15,6 @@
 
 - `python3 make_full_input.py`
 
+## Bounding Box Pseudo Labeling for Object Detection
+
+`handtracking` 디렉토리 `README.md` 참고
