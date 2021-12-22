@@ -11,7 +11,7 @@
 - Level 2 CV Team 4 - 무럭무럭 감자밭 🥔
 - 팀 구성원: 김세영, 박성진, 신승혁, 이상원, 이윤영, 이채윤, 조성욱
 
-여기에다가 사진도 넣져?
+<img src="src/[무무감]팀 소개.png">
 
 ## Project Overview
 
@@ -21,36 +21,35 @@
 
 ## Service Architecture
 
-<img src="src/service_architecture.png"  width="500">
+<img src="src/service_architecture.png" width="80%">
+
+- 설명 설명
 
 ## Demo
 
-비디오 링크를 달아야하나?
+<img src="src/demo.gif">
 
 ## Work Directory
 ```
-├──dataset
-|   ├──eda
-|   ├──yolov5       # dataset by yolo format
-|   └──json files   # dataset by coco format
-├──output
-|   ├──detectron
-|   ├──mmdet
-|   └──yolov5
-├──detectron
-├──mmdetection
-├──Swin-Transformer-Object-Detection # swin-b
-├──efficientdet
-└──yolov5
+├──detect_server    # server for inference
+|   ├──models           # YOLOv5 model and config files
+|   ├──saved            # trained model (.pt)
+|   ├──utils
+|   └──detect_server.py
+├──input            # generate dataset
+|   ├──handtracking
+|   ├──make_full_input.py
+|   ├──make_input.py
+|   └──make_kaggle_input.py
+├──model_lab        # model experiments
+|   ├──frame_classification
+|   ├──object_detection
+|   └──video_classification
+├──src
+└──web_server       # streamlit server
+    ├──pic
+    └──app.py
 ```
-
-## Model
-
-모델 파일 안에 readme 따로 작성하면 거길로 링크 달?
-
-## Serving
-
-서빙도 마찬가지?
 
 ## Environment
 
