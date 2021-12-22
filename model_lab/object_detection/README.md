@@ -26,7 +26,6 @@ python train.py
 python train.py --multiscale
 # pretrained model
 python train.py --weights [PATH_TO_WEIGHT_FILE]
-
 ```
 model 실험 결과 best.pt는 `yolov5/output`에 저장됩니다. 
 - detect
