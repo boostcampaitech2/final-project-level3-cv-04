@@ -34,7 +34,7 @@ def handwash_app():
 
             if self.frame_cnt % 3 == 0:
                 file = encode_image(image)
-                self.response = requests.post("http://49.50.165.66:6012/", files=file) 
+                self.response = requests.post("http://49.50.165.66:6012/", files=file) # Add your detection server address
                 
             label, confidence, bbox = self.response.json()['label'], self.response.json()['confidence'], self.response.json()['bbox']   
             if label is not None:
