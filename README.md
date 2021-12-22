@@ -61,7 +61,7 @@
 ## 🗂 Work Directory
 ```
 ├──detect_server    # server for inference
-|   ├──models           # YOLOv5 model and config files
+|   ├──models           
 |   ├──saved            # trained model (.pt)
 |   ├──utils
 |   └──detect_server.py
