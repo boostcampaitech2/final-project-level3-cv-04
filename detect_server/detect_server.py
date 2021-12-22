@@ -30,7 +30,7 @@ def hello():
 
    with torch.no_grad():
       pred = model(img)
-      pred = non_max_suppression(pred, conf_thres=0.25, iou_thres=0.45, classes=None, max_det=2000)
+      pred = non_max_suppression(pred, conf_thres=0.20, iou_thres=0.45, classes=None, max_det=2000)
       # pred = list of detections, on (n,6) tensor per image [xyxy, conf, cls] 
       # detection = [[x,y,x,y], conf, cls] 
       label = None
