@@ -1,6 +1,7 @@
 import os
 import cv2
 import pandas as pd
+from tqdm import tqdm
 
 PATH = "/opt/ml/HandWashDataset/videos"
 IMAGE_PER_SEC = 4
@@ -21,6 +22,7 @@ for i in range(1,7):
 		stepList.extend([os.path.join(path,x) for x in os.listdir(path)])
 	fullName.append(stepList)
 
+print(fullName)
 os.makedirs("./kaggle_image", exist_ok=True)
 for i, videoList in enumerate(fullName):
 	stepNum = i+1
@@ -29,7 +31,7 @@ for i, videoList in enumerate(fullName):
 
 	cnt = 0
 	csvName = "kaggle_train.csv"
-	for i,videoPath in enumerate(videoList):
+	for i,videoPath in tqdm(enumerate(videoList)):
 
 		if i > len(videoList) * 0.8:
 			csvName = "kaggle_valid.csv"

@@ -61,7 +61,11 @@ def parse_args():
         default=5,
         help='Size of the queue.')
     parser.add_argument(
-        '--datadir',
+        '--imgdir',
+        type=str,
+        help='Dataset directory')
+    parser.add_argument(
+        '--txtdir',
         type=str,
         help='Dataset directory')
     args = parser.parse_args()
@@ -154,10 +158,6 @@ def video(score_thresh, filepath, savepath):
 
 
 def image(score_thresh, IMAGE_PATH, TXT_PATH):
-    """
-        filepath: original file path
-        savepath: should be in .mp4 format
-    """
     no_object = open("no_object.txt", "a+")
     for filename in tqdm(os.listdir(IMAGE_PATH)):
         filepath = os.path.join(IMAGE_PATH, filename)
@@ -198,8 +198,6 @@ def image(score_thresh, IMAGE_PATH, TXT_PATH):
 
         if len(hand_coordinates)==0:
             # no hand detected -> Delete file
-            f = open(txtpath, 'r')
-            label = str(f.readline().rstrip())
             no_object.write(f"{filename}\n")
             pass
         else:
@@ -212,18 +210,14 @@ def image(score_thresh, IMAGE_PATH, TXT_PATH):
             height = bottom - top
             #print(cx, cy, width, height)
             # Append in .txt file
-            """ 
-            FIXME
-            Not working properly
-            """
-            f = open(txtpath, 'w+')
-            label = str(f.readline()).split("\t")[0]
+            label = IMAGE_PATH.split("/")[-2]
+            f = open(txtpath, 'w')
             f.write(f"{label}\t{cx}\t{cy}\t{width}\t{height}")
             f.close()
     no_object.close()
 
 def delete_nohand(IMAGE_PATH, TXT_PATH):
-    f = open("no_object.txt", "r")
+    f = open("golden_no_object.txt", "r")
     filelst = list(f.read().rstrip().split("\n"))
     f.close()
     # remove anntation.txt file
@@ -242,7 +236,7 @@ def delete_nohand(IMAGE_PATH, TXT_PATH):
 if __name__ == '__main__':
     args = parse_args()
 
-    IMAGE_PATH = os.path.join(args.datadir, "images")
-    TXT_PATH = os.path.join(args.datadir, "labels")
+    IMAGE_PATH = os.path.join(args.imgdir)
+    TXT_PATH = os.path.join(args.txtdir)
     image(args.score_thresh, IMAGE_PATH, TXT_PATH)
-    delete_nohand(IMAGE_PATH, TXT_PATH)
+    #delete_nohand(IMAGE_PATH, TXT_PATH)
