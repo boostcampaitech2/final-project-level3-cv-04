@@ -3,7 +3,7 @@
 Our train code is based on [torchvision video classification reference](https://github.com/pytorch/vision/tree/main/references/video_classification)
 
 ## Train
-- **[Config 예시](https://github.com/boostcampaitech2/final-project-level3-cv-04/blob/model/classification/video-classification/model_lab/video_classification/config/base_test.yaml)**
+- **[Config 예시](https://github.com/boostcampaitech2/final-project-level3-cv-04/blob/main/model_lab/video_classification/config/base_test.yaml)**
 
 - **Train with config file**
   ```bash
