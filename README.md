@@ -21,7 +21,7 @@
 </p>
 
 
-### Model
+### 🧠 Model
 
 #### Real Time Object Detection with YOLOv5
 
@@ -43,7 +43,7 @@
 |<img src="src/model/before.gif">|<img src="src/model/after.gif">|
 
 
-### Service Architecture
+### 🏗 Service Architecture
 
 #### Overall Architecture
 
