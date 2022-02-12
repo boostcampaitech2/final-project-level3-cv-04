@@ -20,6 +20,10 @@
     <img src="src/demo_2x.gif">
 </p>
 
+### 👁‍🗨Dataset
+
+1. <a href="https://www.kaggle.com/realtimear/hand-wash-dataset">Kaggle Hand Wash Dataset</a>
+2. Elsts, Atis, Ivanovs, Maksims, Martins Lulla, Aleksejs Rutkovskis, Andreta Slavinska, Aija Vilde, & Anastasija Gromova. (2021). Hand Washing Video Dataset Annotated According to the World Health Organization's Handwashing Guidelines [Data set]. Zenodo. https://doi.org/10.5281/zenodo.4537209
 
 ### 🧠 Model
 
